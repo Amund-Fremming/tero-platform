@@ -6,6 +6,10 @@ use uuid::Uuid;
 
 use crate::{quiz::models::Quiz, spin::models::SpinGame};
 
+pub trait Identify {
+    fn get_id(&self) -> Uuid;
+}
+
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, sqlx::Type)]
 #[sqlx(type_name = "game_category", rename_all = "lowercase")]
 pub enum GameCategory {
@@ -116,4 +120,12 @@ impl PagedResponse {
 pub struct GameSessionRequest {
     pub game_type: GameType,
     pub payload: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateGameRequest {
+    pub host_id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub category: Option<GameCategory>,
 }

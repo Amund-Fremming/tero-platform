@@ -7,6 +7,23 @@ use crate::{
     common::server_error::ServerError,
 };
 
+pub async fn get_user_id_by_auth0_id(
+    pool: &Pool<Postgres>,
+    auth0_id: &str,
+) -> Result<Uuid, sqlx::Error> {
+    let option = sqlx::query_scalar::<_, Uuid>(
+        r#"
+        SELECT id from "user"
+        WHERE auth0_id = $1
+        "#,
+    )
+    .bind(auth0_id)
+    .fetch_optional(pool)
+    .await?;
+
+    // HANDLE - if this is none, sync is fucked, this should never happen
+}
+
 pub async fn get_user_by_id(
     pool: &Pool<Postgres>,
     user_id: i32,

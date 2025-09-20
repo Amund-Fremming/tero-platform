@@ -3,6 +3,7 @@
 ## Quick notes
 
 - Persist gamesession needs to be protected. Make singalR hub a integration, validate M2M Token
+- Index on auth0 id on user
 
 ## Thoughts
 

@@ -2,7 +2,7 @@ use axum::{http::StatusCode, response::IntoResponse};
 use thiserror::Error;
 use tracing::error;
 
-use crate::auth::auth_models::Permission;
+use crate::{auth::auth_models::Permission, client::gamesession_client::GameSessionClientError};
 
 #[derive(Debug, Error)]
 pub enum ServerError {
@@ -38,6 +38,9 @@ pub enum ServerError {
 
     #[error("Missing env var: {0}")]
     MissingEnv(String),
+
+    #[error("GameSessionClient error: {0}")]
+    GameSessionClientError(#[from] GameSessionClientError),
 }
 
 impl IntoResponse for ServerError {
@@ -92,6 +95,13 @@ impl IntoResponse for ServerError {
             ServerError::MissingEnv(e) => {
                 error!("Missing env var: {}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, String::new())
+            }
+            ServerError::GameSessionClientError(e) => {
+                error!("GameSessionClient error: {}", e);
+                (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    String::from("Upstream service unavailable"),
+                )
             }
         }
         .into_response()

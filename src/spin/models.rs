@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::common::models::GameCategory;
+use crate::common::models::{CreateGameRequest, GameCategory, Identify};
 
 #[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct SpinGame {
@@ -37,7 +37,26 @@ pub struct SpinSession {
     pub rounds: Vec<Round>,
 }
 
+impl Identify for SpinSession {
+    fn get_id(&self) -> Uuid {
+        self.id
+    }
+}
+
 impl SpinSession {
+    pub fn from_create_request(request: CreateGameRequest) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            host_id: request.host_id,
+            name: request.name,
+            description: request.description,
+            category: request.category.unwrap_or(GameCategory::Default),
+            iterations: 0,
+            times_played: 0,
+            rounds: vec![],
+        }
+    }
+
     pub fn from_game_and_rounds(host_id: Uuid, game: SpinGame, rounds: Vec<Round>) -> Self {
         Self {
             id: game.id,
