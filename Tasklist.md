@@ -21,6 +21,7 @@
 - [x] Setup tracing
 - [x] Basic middleware request logger (may not need after some time, but good for debugging)
 - [x] Map out all models
+- [x] Centrallized config management
 - [ ] Setup runtimes with .env files GITIGNORE, maybe also runtimmes for auth0, so we have separate triggers for different environments. Less pain to work with
 
 **State**
@@ -51,11 +52,18 @@
 - [ ] Sync on registered user creation, needs to deactivate/delete the guest user
 - [ ] Sync for when a user gets admin permissions, needs to update user type
 
+**M2M GameSession**
+- [ ] Create M2M support for gamesession
+- [ ] Support new Subject Integration
+- [ ] Create auth0 cached client for getting token from c#
+- [ ] Create and give out permissions
+
 **Cache**
 - [x] Implement a generic cache wrapper and implementation for DRY principle for future games and caches
 - [x] Implement a generic cache for game search pages
 - [x] Expand search cache to support passing in functions to handle when its a cache miss
 - [x] Move cache out in its own reusable crate for future use
+- [ ] Change ttl to use UNIC EPOCH not datetime
 - [ ] Tests to verify that the cache works
 
 **Generic feature**
@@ -63,18 +71,19 @@
 - [x] GenericGameService with GetGame, Typed Search
 
 **SignalR microservice**
-- [ ] Create C# project with signal installed
+- [x] Create C# project with signal installed
 - [ ] Create a http client for talking to rust
 - [ ] Create api in c# for consuming games from rust
 - [ ] Create or add a cache solution for storing game sessions
 - [ ] Add core game logic in c# project
 
 **Rust connection to microservice**
-- [ ] Create api in rust for consuming created games in db
-- [ ] Create client for talking to C#
-- [ ] Api for storing games to database from c#
-- [ ] Api for creation of game, send to c# and client
-- [ ] Api for game session creation, send to c# and client
+- [x] Create api in rust for consuming created games in db
+- [x] Create client for talking to C#
+- [x] Api for storing games to database from c#
+- [x] Api for creation of game, send to c# and client
+- [x] Api for game session creation, send to c# and client
+- [ ] Fully tested
 
 **UniversalService**
 - [ ] Pagination support
@@ -83,12 +92,14 @@
 
 **Admin**
 - [ ] Endponints for user history, how many active last week, last month and today
-- [ ] Endpoints for fetching logs based on time or ceverity?
+- [ ] Endpoints for fetching logs based on time or ceverity
+- [ ] Possibility to view config like redirect (for debugging)
 
 **Audit**
 - [ ] Enums for action and ceverity
 - [ ] Implement and SQL migration
 - [ ] Add audit logs where neccesarry
+- [ ] Protected api for game session to write logs
 
 **Consents**
 - [ ] Make it a static table / json file loaded from startup
