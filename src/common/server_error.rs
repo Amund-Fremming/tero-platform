@@ -36,11 +36,11 @@ pub enum ServerError {
     #[error("Json error: {0}")]
     Json(#[from] serde_json::Error),
 
-    #[error("Missing env var: {0}")]
-    MissingEnv(String),
-
     #[error("GameSessionClient error: {0}")]
     GameSessionClientError(#[from] GameSessionClientError),
+
+    #[error("Out of sync error: {0}")]
+    OutOfSync(String),
 }
 
 impl IntoResponse for ServerError {
@@ -92,16 +92,16 @@ impl IntoResponse for ServerError {
                 error!("Gust Cache error: {}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, String::new())
             }
-            ServerError::MissingEnv(e) => {
-                error!("Missing env var: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, String::new())
-            }
             ServerError::GameSessionClientError(e) => {
                 error!("GameSessionClient error: {}", e);
                 (
                     StatusCode::SERVICE_UNAVAILABLE,
                     String::from("Upstream service unavailable"),
                 )
+            }
+            ServerError::OutOfSync(e) => {
+                error!("Out of sync error: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, String::new())
             }
         }
         .into_response()

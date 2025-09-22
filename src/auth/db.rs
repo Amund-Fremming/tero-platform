@@ -10,7 +10,7 @@ use crate::{
 pub async fn get_user_id_by_auth0_id(
     pool: &Pool<Postgres>,
     auth0_id: &str,
-) -> Result<Uuid, sqlx::Error> {
+) -> Result<Uuid, ServerError> {
     let option = sqlx::query_scalar::<_, Uuid>(
         r#"
         SELECT id from "user"
@@ -21,7 +21,14 @@ pub async fn get_user_id_by_auth0_id(
     .fetch_optional(pool)
     .await?;
 
-    // HANDLE - if this is none, sync is fucked, this should never happen
+    let Some(uuid) = option else {
+        return Err(ServerError::OutOfSync(format!(
+            "User id is out of sync with auth0_id {}",
+            auth0_id
+        )));
+    };
+
+    Ok(uuid)
 }
 
 pub async fn get_user_by_id(

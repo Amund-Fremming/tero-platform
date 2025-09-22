@@ -10,7 +10,7 @@ use reqwest::StatusCode;
 use uuid::Uuid;
 
 use crate::{
-    auth::user_models::Subject,
+    auth::{db::get_user_id_by_auth0_id, user_models::Subject},
     common::{
         app_state::AppState,
         models::{CreateGameRequest, GameSessionRequest, GameType, PagedRequest, PagedResponse},
@@ -21,7 +21,7 @@ use crate::{
         models::QuizSession,
     },
     spin::{
-        db::{self, get_spin_page, get_spin_session_by_id, tx_persist_spinsession},
+        db::{get_spin_page, get_spin_session_by_id, tx_persist_spinsession},
         models::SpinSession,
     },
 };
@@ -57,7 +57,7 @@ async fn initiate_gamesession(
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject {
         Subject::Guest(id) => id,
-        Subject::Registered(id) => get,
+        Subject::Registered(id) => get_user_id_by_auth0_id(state.get_pool(), &id).await?,
         _ => return Err(ServerError::AccessDenied),
     };
 

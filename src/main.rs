@@ -5,13 +5,13 @@ use axum::{
     middleware::{from_fn, from_fn_with_state},
 };
 use dotenv::dotenv;
-use once_cell::sync::Lazy;
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
     auth::handlers::{protected_auth_routes, public_auth_routes},
     common::{app_state::AppState, handlers::common_routes},
+    config::config::CONFIG,
     health::handlers::health_routes,
     mw::{auth_mw::auth_mw, request_mw::request_mw},
 };
@@ -19,27 +19,16 @@ use crate::{
 mod auth;
 mod client;
 mod common;
+mod config;
 mod health;
 mod mw;
 mod quiz;
 mod spin;
 
-static AUTH0_WEBHOOK_KEY: Lazy<String> = Lazy::new(|| {
-    env::var("AUTH0_WEBHOOK_KEY").expect("AUTH0_WEBHOOK_KEY is missing as env variable")
-});
-static AUTH0_DOMAIN: Lazy<String> =
-    Lazy::new(|| env::var("AUTH0_DOMAIN").expect("AUTH0_DOMAIN is missing as env variable"));
-static AUTH0_AUDIENCE: Lazy<String> =
-    Lazy::new(|| env::var("AUTH0_AUDIENCE").expect("AUTH0_AUDIENCE is missing as env variable"));
-
 #[tokio::main]
 async fn main() {
     // Initialize .env
     dotenv().ok();
-
-    // Validate that env variables exists
-    Lazy::force(&AUTH0_WEBHOOK_KEY);
-    Lazy::force(&AUTH0_DOMAIN);
 
     // Initialize logging
     let subscriber = FmtSubscriber::builder()
@@ -49,9 +38,7 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("Failed to set global tracing");
 
     // Initialize state
-    let connection_string =
-        env::var("DATABASE_URL").expect("DATABASE_URL is missing as env variable");
-    let state = AppState::from_connection_string(&connection_string)
+    let state = AppState::from_connection_string(&CONFIG.database_url)
         .await
         .unwrap_or_else(|e| panic!("{}", e));
 
@@ -71,13 +58,14 @@ async fn main() {
         .layer(from_fn(request_mw));
 
     // Initialize webserver
-    let port = env::var("PORT").expect("PORT is missing as env variable");
-    let host = env::var("HOST").expect("HOST is missing as env variable");
+    let listener =
+        tokio::net::TcpListener::bind(format!("{}:{}", CONFIG.server.address, CONFIG.server.port))
+            .await
+            .unwrap();
 
-    let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port))
-        .await
-        .unwrap();
-
-    info!("Server listening on address: {}:{}", host, port);
+    info!(
+        "Server listening on address: {}",
+        listener.local_addr().unwrap()
+    );
     axum::serve(listener, app).await.unwrap();
 }

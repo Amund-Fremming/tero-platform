@@ -1,14 +1,13 @@
-use std::{env, sync::Arc};
+use std::sync::Arc;
 
 use gustcache::GustCache;
 use reqwest::Client;
 use serde::Deserialize;
 use sqlx::{Pool, Postgres};
-use tracing::info;
 
 use crate::{
-    AUTH0_DOMAIN, client::gamesession_client::GameSessionClient, common::server_error::ServerError,
-    quiz::models::Quiz, spin::models::SpinGame,
+    client::gamesession_client::GameSessionClient, common::server_error::ServerError,
+    config::config::CONFIG, quiz::models::Quiz, spin::models::SpinGame,
 };
 
 #[derive(Debug)]
@@ -41,15 +40,13 @@ pub struct Jwk {
 impl AppState {
     pub async fn from_connection_string(connection_string: &str) -> Result<Arc<Self>, ServerError> {
         let pool = Pool::<Postgres>::connect(&connection_string).await?;
-        let gs_domain =
-            env::var("GS_DOMAIN").map_err(|_| ServerError::MissingEnv("GS_DOMAIN".into()))?;
-
         let client = Client::new();
-        let gs_client = GameSessionClient::new(gs_domain);
-        let url = format!("{}.well-known/jwks.json", *AUTH0_DOMAIN);
-        let response = client.get(url).send().await?;
-        info!("JWKs Response: {}", response.status());
+        let gs_client = GameSessionClient::new(&CONFIG.server.session_domain);
+
+        let jwks_url = format!("{}.well-known/jwks.json", CONFIG.auth0.domain);
+        let response = client.get(jwks_url).send().await?;
         let jwks = response.json::<Jwks>().await?;
+
         let quiz_cache = GustCache::from_ttl(chrono::Duration::minutes(2));
         let spin_cache = GustCache::from_ttl(chrono::Duration::minutes(2));
 

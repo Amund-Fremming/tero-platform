@@ -12,7 +12,6 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
-    AUTH0_AUDIENCE, AUTH0_DOMAIN,
     auth::{
         auth_models::{Claims, PermissionCtx},
         user_models::Subject,
@@ -21,6 +20,7 @@ use crate::{
         app_state::{AppState, Jwks},
         server_error::ServerError,
     },
+    config::config::CONFIG,
 };
 
 static AUTH0_WEBHOOK_KEY: &str = "Auth0-Webhook-Key";
@@ -48,9 +48,18 @@ pub async fn auth_mw(
         debug!("Request by subject: {:?}", &subject);
         req.extensions_mut().insert(permissions);
         req.extensions_mut().insert(subject);
+
+        return Ok(next.run(req).await);
     }
 
     if auth0_webhook_key.is_some() {
+        let current_key = auth0_webhook_key.unwrap();
+        let valid_key = CONFIG.auth0.webhook_key.to_string();
+
+        if current_key != valid_key {
+            return Err(ServerError::Api(StatusCode::UNAUTHORIZED, "".into()));
+        }
+
         let subject = Subject::Auth0;
         info!("Request by subject: {:?}", subject);
         req.extensions_mut().insert(subject);
@@ -112,8 +121,8 @@ async fn verify_jwt(token: &str, jwks: &Jwks) -> Result<TokenData<serde_json::Va
         .map_err(|e| ServerError::JwtVerification(format!("Failed to get decoding key: {}", e)))?;
 
     let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_audience(&[AUTH0_AUDIENCE.to_string()]);
-    validation.set_issuer(&[AUTH0_DOMAIN.to_string()]);
+    validation.set_audience(&[&CONFIG.auth0.audience]);
+    validation.set_issuer(&[&CONFIG.auth0.domain]);
 
     decode::<serde_json::Value>(token, &decoding_key, &validation)
         .map_err(|e| ServerError::JwtVerification(format!("Failed to validate token: {}", e)))
