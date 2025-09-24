@@ -1,17 +1,12 @@
 # Tasklist
 
 ## Quick notes for frontend
+
 - read before spin blir random, mindre for bruker å velge
 
 ## Quick notes
 
 - Persist gamesession needs to be protected. Make singalR hub a integration, validate M2M Token
-
-## Thoughts
-
-- Cleanup ids: - some are uuid some are i32, and fix indexes to these if they are uuid
-- Cleanup user id: - user has many ids now, decide on one sort.
-- Split the fn get_subject_and_permissins into two fn, SRP
 
 ## Tasklist
 
@@ -24,7 +19,8 @@
 - [x] Basic middleware request logger (may not need after some time, but good for debugging)
 - [x] Map out all models
 - [x] Centrallized config management
-- [ ] Setup runtimes with .env files GITIGNORE, maybe also runtimmes for auth0, so we have separate triggers for different environments. Less pain to work with
+- [x] Setup runtimes with .env files GITIGNORE
+- [x] Better config management
 
 **State**
 - [x] Implement state with pg pool
@@ -89,9 +85,14 @@
 - [ ] Fully tested
 
 **UniversalService**
-- [ ] Pagination support
+- [x] Pagination support
 - [x] Typed search for all games
 - [ ] Universal join game
+
+**Name generator**
+- [ ] Setup index and tables
+- [ ] Setup db handlers
+- [ ] Implement for games
 
 **Admin**
 - [ ] Endponints for user history, how many active last week, last month and today

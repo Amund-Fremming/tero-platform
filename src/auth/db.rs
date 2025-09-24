@@ -3,7 +3,7 @@ use sqlx::{Pool, Postgres, Row, query, query_as};
 use uuid::Uuid;
 
 use crate::{
-    auth::user_models::{Auth0User, PutUserRequest, StrippedUser, User, UserType},
+    auth::models::{Auth0User, PutUserRequest, User, UserType},
     common::server_error::ServerError,
 };
 

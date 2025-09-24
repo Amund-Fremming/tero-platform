@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::common::models::{CreateGameRequest, GameBase, GameCategory, Identify};
+use crate::games::models::{CreateGameRequest, GameBase, GameCategory, Identify};
 
 impl Into<GameBase> for SpinGame {
     fn into(self) -> GameBase {
@@ -38,6 +38,7 @@ pub struct Round {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpinSession {
     pub id: Uuid,
+    pub join_key: String,
     pub host_id: Uuid,
     pub name: String,
     pub description: Option<String>,
@@ -57,9 +58,10 @@ impl Identify for SpinSession {
 }
 
 impl SpinSession {
-    pub fn from_create_request(request: CreateGameRequest) -> Self {
+    pub fn from_create_request(join_key: String, request: CreateGameRequest) -> Self {
         Self {
             id: Uuid::new_v4(),
+            join_key,
             host_id: request.host_id,
             name: request.name,
             description: request.description,
@@ -70,9 +72,15 @@ impl SpinSession {
         }
     }
 
-    pub fn from_game_and_rounds(host_id: Uuid, game: SpinGame, rounds: Vec<Round>) -> Self {
+    pub fn from_game_and_rounds(
+        join_key: String,
+        host_id: Uuid,
+        game: SpinGame,
+        rounds: Vec<Round>,
+    ) -> Self {
         Self {
             id: game.id,
+            join_key,
             host_id,
             name: game.name,
             description: game.description,

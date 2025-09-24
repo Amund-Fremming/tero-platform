@@ -41,6 +41,17 @@ impl GameCategory {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "gender", rename_all = "lowercase")]
+pub enum Gender {
+    #[sqlx(rename = "m")]
+    Male,
+    #[sqlx(rename = "f")]
+    Female,
+    #[sqlx(rename = "u")]
+    Unknown,
+}
+
 #[derive(Debug, Serialize, Deserialize, Hash)]
 pub enum GameType {
     Quiz,
@@ -85,9 +96,16 @@ impl PagedResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GameSessionRequest {
+pub struct CreateSessionRequest {
     pub game_type: GameType,
     pub payload: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JoinSessionRequest {
+    pub user_id: Uuid,
+    pub game_id: Uuid,
+    pub game_type: GameType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

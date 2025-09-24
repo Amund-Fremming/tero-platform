@@ -12,10 +12,7 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
-    auth::{
-        models::{Claims, PermissionCtx},
-        user_models::SubjectId,
-    },
+    auth::models::{Claims, PermissionCtx, SubjectId},
     common::{
         app_state::{AppState, Jwks},
         server_error::ServerError,

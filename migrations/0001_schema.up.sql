@@ -13,14 +13,31 @@ CREATE TYPE game_category AS ENUM (
     'boys'
 );
 
+CREATE TYPE gender AS ENUM (
+    'm',
+    'f',
+    'u'   
+)
+
+CREATE TABLE "game_name" (
+    "id" PRIMARY KEY SERIAL,
+    "name" VARCHAR(20) NOT NULL,
+    "in_use" BOOLEAN NOT NULL
+)
+
 CREATE TABLE "user" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "auth0_id" VARCHAR,
     "user_type" user_type NOT NULL DEFAULT 'guest',
     "last_active" TIMESTAMPTZ NOT NULL DEFAULT now(),
-    "name" VARCHAR(100),
+    "birth_date" DATE,
+    "gender" gender,
     "email" VARCHAR(150),
-    "birth_date" DATE
+    "email_verified" BOOLEAN,
+    "family_name" VARCHAR(100),
+    "updated_at" TIMESTAMPTZ,
+    "given_name" VARCHAR(100),
+    "created_at" TIMESTAMPTZ
 );
 
 CREATE TABLE "quiz_game" (
@@ -51,6 +68,8 @@ CREATE TABLE "spin_game_round" (
 );
 
 ALTER TABLE "spin_game_round" ADD CONSTRAINT "spin_game_round_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
+
+CREATE INDEX "idx_game_name_in_use" ON "game_name"("name", "in_use")
 
 CREATE INDEX "idx_user_id" ON "user" ("id");
 CREATE INDEX "idx_auth0_id" ON "user" ("guest_id");

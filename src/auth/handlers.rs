@@ -11,10 +11,10 @@ use sqlx::{Pool, Postgres};
 use tracing::info;
 
 use crate::{
+    auth::models::{Auth0User, PutUserRequest, SubjectId},
     auth::{
         db,
         models::{Permission, PermissionCtx},
-        user_models::{Auth0User, PutUserRequest, SubjectId},
     },
     common::{app_state::AppState, server_error::ServerError},
 };

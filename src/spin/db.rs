@@ -6,7 +6,7 @@ use crate::{
     spin::models::{Round, SpinGame, SpinSession},
 };
 
-pub async fn get_spin_session_by_id(
+pub async fn get_spin_session_by_game_id(
     pool: &Pool<Postgres>,
     host_id: Uuid,
     game_id: &Uuid,

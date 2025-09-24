@@ -10,33 +10,53 @@ use reqwest::StatusCode;
 use uuid::Uuid;
 
 use crate::{
-    auth::{db::get_user_id_by_auth0_id, user_models::SubjectId},
-    common::{
-        app_state::AppState,
+    auth::{db::get_user_id_by_auth0_id, models::SubjectId},
+    common::{app_state::AppState, server_error::ServerError},
+    games::{
         db,
-        models::{CreateGameRequest, GameSessionRequest, GameType, PagedRequest},
-        server_error::ServerError,
+        models::{CreateGameRequest, CreateSessionRequest, GameType, PagedRequest},
     },
     quiz::{
         db::{get_quiz_session_by_id, tx_persist_quizsession},
         models::QuizSession,
     },
     spin::{
-        db::{get_spin_session_by_id, tx_persist_spinsession},
+        db::{get_spin_session_by_game_id, tx_persist_spinsession},
         models::SpinSession,
     },
 };
 
-pub fn common_routes(state: Arc<AppState>) -> Router {
+pub fn games_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/session/persist", post(persist_gamesession))
-        .route("/search/{game_type}", post(typed_search))
-        .route("/create/{game_type}", post(create_gamesession))
-        .route("/initiate/{game_type}", post(initiate_gamesession))
+        .route("/session/persist", post(persist_game_session))
+        .route("/page/{game_type}", post(get_game_page))
+        .route("/create/{game_type}", post(create_game_session))
+        .route("/join/{game_type}/{game_id}", post(join_game_session))
+        .route("/initiate/{game_type}", post(initiate_game_session))
         .with_state(state)
 }
 
-async fn create_gamesession(
+async fn join_game_session(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Path(game_type): Path<GameType>,
+    Path(game_id): Path<Uuid>,
+) -> Result<impl IntoResponse, ServerError> {
+    let user_id = match subject_id {
+        SubjectId::Guest(uid) => uid,
+        SubjectId::Registered(aid) => get_user_id_by_auth0_id(state.get_pool(), &aid).await?,
+        _ => return Err(ServerError::AccessDenied),
+    };
+
+    let gs_client = state.get_session_client();
+    let response = gs_client
+        .join_game_session(state.get_client(), game_type, user_id, game_id)
+        .await?;
+
+    Ok((StatusCode::OK, Json(response)))
+}
+
+async fn create_game_session(
     State(state): State<Arc<AppState>>,
     Path(game_type): Path<GameType>,
     Json(request): Json<CreateGameRequest>,
@@ -44,13 +64,13 @@ async fn create_gamesession(
     let client = state.get_client();
     let gs_client = state.get_session_client();
     let response = gs_client
-        .create_gamesession(client, game_type, request)
+        .create_game_session(client, game_type, request)
         .await?;
 
     Ok((StatusCode::CREATED, Json(response)))
 }
 
-async fn initiate_gamesession(
+async fn initiate_game_session(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
     Path(game_type): Path<GameType>,
@@ -67,7 +87,7 @@ async fn initiate_gamesession(
 
     let response = match game_type {
         GameType::Spin => {
-            let session = get_spin_session_by_id(state.get_pool(), user_id, &game_id).await?;
+            let session = get_spin_session_by_game_id(state.get_pool(), user_id, &game_id).await?;
             gs_client
                 .initiate_gamesession(game_type, session, client)
                 .await?
@@ -83,9 +103,9 @@ async fn initiate_gamesession(
     Ok((StatusCode::OK, Json(response)))
 }
 
-async fn persist_gamesession(
+async fn persist_game_session(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<GameSessionRequest>,
+    Json(request): Json<CreateSessionRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     let mut tx = state.get_pool().begin().await?;
 
@@ -103,7 +123,7 @@ async fn persist_gamesession(
     Ok(())
 }
 
-async fn typed_search(
+async fn get_game_page(
     State(state): State<Arc<AppState>>,
     Path(game_type): Path<GameType>,
     Json(request): Json<PagedRequest>,
