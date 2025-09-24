@@ -3,10 +3,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum Subject {
+pub enum SubjectId {
     Guest(Uuid),
     Registered(String),
-    Admin(String),
     Auth0,
 }
 
@@ -26,32 +25,40 @@ pub struct Auth0User {
 pub enum UserType {
     #[serde(rename(deserialize = "guest"))]
     Guest,
-    #[serde(rename(deserialize = "admin"))]
-    Admin,
     #[serde(rename(deserialize = "registered"))]
     Registered,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
-    id: i32,
-    pub guest_id: Uuid,
+    pub id: Uuid,
     pub auth0_id: Option<String>,
     pub user_type: UserType,
     pub last_active: DateTime<Utc>,
-    name: Option<String>,
-    email: Option<String>,
-    birth_date: Option<NaiveDate>,
+    pub last_updated: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
+    pub email: Option<String>,
+    pub email_verified: Option<bool>,
+    pub birth_date: Option<NaiveDate>,
 }
 
-impl User {
-    pub fn strip_sensisive_data(&mut self) {
-        self.auth0_id = None;
-        self.name = None;
-        self.email = None;
-        self.birth_date = None;
+impl Into<StrippedUser> for User {
+    fn into(self) -> StrippedUser {
+        StrippedUser {
+            id: self.id,
+            given_name: self.given_name,
+        }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StrippedUser {
+    pub id: Uuid,
+    pub given_name: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PutUserRequest {
     pub name: Option<String>,

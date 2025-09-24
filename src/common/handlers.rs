@@ -3,25 +3,26 @@ use std::sync::Arc;
 use axum::{
     Extension, Json, Router,
     extract::{Path, State},
-    response::{IntoResponse, Response},
+    response::IntoResponse,
     routing::post,
 };
 use reqwest::StatusCode;
 use uuid::Uuid;
 
 use crate::{
-    auth::{db::get_user_id_by_auth0_id, user_models::Subject},
+    auth::{db::get_user_id_by_auth0_id, user_models::SubjectId},
     common::{
         app_state::AppState,
-        models::{CreateGameRequest, GameSessionRequest, GameType, PagedRequest, PagedResponse},
+        db,
+        models::{CreateGameRequest, GameSessionRequest, GameType, PagedRequest},
         server_error::ServerError,
     },
     quiz::{
-        db::{get_quiz_page, get_quiz_session_by_id, tx_persist_quizsession},
+        db::{get_quiz_session_by_id, tx_persist_quizsession},
         models::QuizSession,
     },
     spin::{
-        db::{get_spin_page, get_spin_session_by_id, tx_persist_spinsession},
+        db::{get_spin_session_by_id, tx_persist_spinsession},
         models::SpinSession,
     },
 };
@@ -51,13 +52,13 @@ async fn create_gamesession(
 
 async fn initiate_gamesession(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<Subject>,
+    Extension(subject): Extension<SubjectId>,
     Path(game_type): Path<GameType>,
     Path(game_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject {
-        Subject::Guest(id) => id,
-        Subject::Registered(id) => get_user_id_by_auth0_id(state.get_pool(), &id).await?,
+        SubjectId::Guest(id) => id,
+        SubjectId::Registered(id) => get_user_id_by_auth0_id(state.get_pool(), &id).await?,
         _ => return Err(ServerError::AccessDenied),
     };
 
@@ -106,25 +107,7 @@ async fn typed_search(
     State(state): State<Arc<AppState>>,
     Path(game_type): Path<GameType>,
     Json(request): Json<PagedRequest>,
-) -> Result<Response, ServerError> {
-    let response = match game_type {
-        GameType::Quiz => {
-            let quizzes = state
-                .get_quiz_cache()
-                .get(&request, || get_quiz_page(state.get_pool(), &request))
-                .await?;
-
-            PagedResponse::from_quizzes(quizzes)
-        }
-        GameType::Spin => {
-            let spinners = state
-                .get_spin_cache()
-                .get(&request, || get_spin_page(state.get_pool(), &request))
-                .await?;
-
-            PagedResponse::from_spinners(spinners)
-        }
-    };
-
-    Ok((StatusCode::OK, Json(response)).into_response())
+) -> Result<impl IntoResponse, ServerError> {
+    let response = db::get_game_page(state.get_pool(), game_type, request).await?;
+    Ok((StatusCode::OK, Json(response)))
 }

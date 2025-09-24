@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use crate::{
     auth::{
-        auth_models::{Claims, PermissionCtx},
-        user_models::Subject,
+        models::{Claims, PermissionCtx},
+        user_models::SubjectId,
     },
     common::{
         app_state::{AppState, Jwks},
@@ -60,7 +60,7 @@ pub async fn auth_mw(
             return Err(ServerError::Api(StatusCode::UNAUTHORIZED, "".into()));
         }
 
-        let subject = Subject::Auth0;
+        let subject = SubjectId::Auth0;
         info!("Request by subject: {:?}", subject);
         req.extensions_mut().insert(subject);
     }
@@ -71,12 +71,12 @@ pub async fn auth_mw(
 async fn get_subject_and_permissions(
     header_value: String,
     jwks: &Jwks,
-) -> Result<(Subject, PermissionCtx), ServerError> {
+) -> Result<(SubjectId, PermissionCtx), ServerError> {
     if let Some(token) = header_value.strip_prefix("Bearer ") {
         let token_data = verify_jwt(token, jwks).await?;
         let claims: Claims = serde_json::from_value(token_data.claims)?;
 
-        let subject = Subject::Registered(claims.sub);
+        let subject = SubjectId::Registered(claims.sub);
         let permissions = PermissionCtx::new(claims.permissions);
 
         return Ok((subject, permissions));
@@ -86,7 +86,7 @@ async fn get_subject_and_permissions(
         let id: Uuid = value.parse().map_err(|_| {
             ServerError::Api(StatusCode::BAD_REQUEST, "Failed to parse header".into())
         })?;
-        return Ok((Subject::Guest(id), PermissionCtx::none()));
+        return Ok((SubjectId::Guest(id), PermissionCtx::none()));
     }
 
     Err(ServerError::Api(

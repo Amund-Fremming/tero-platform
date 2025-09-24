@@ -2,7 +2,7 @@ use axum::{http::StatusCode, response::IntoResponse};
 use thiserror::Error;
 use tracing::error;
 
-use crate::{auth::auth_models::Permission, client::gamesession_client::GameSessionClientError};
+use crate::{auth::models::Permission, client::gamesession_client::GameSessionClientError};
 
 #[derive(Debug, Error)]
 pub enum ServerError {

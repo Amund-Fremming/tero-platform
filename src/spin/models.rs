@@ -1,7 +1,20 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::common::models::{CreateGameRequest, GameCategory, Identify};
+use crate::common::models::{CreateGameRequest, GameBase, GameCategory, Identify};
+
+impl Into<GameBase> for SpinGame {
+    fn into(self) -> GameBase {
+        GameBase {
+            id: self.id,
+            name: self.name,
+            description: self.description,
+            category: self.category,
+            iterations: self.iterations,
+            times_played: self.times_played,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct SpinGame {

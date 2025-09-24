@@ -1,9 +1,11 @@
 # Tasklist
 
+## Quick notes for frontend
+- read before spin blir random, mindre for bruker å velge
+
 ## Quick notes
 
 - Persist gamesession needs to be protected. Make singalR hub a integration, validate M2M Token
-- Index on auth0 id on user
 
 ## Thoughts
 
@@ -48,6 +50,7 @@
 - [x] Decode and validate tokens
 - [x] Permission checks for endpoints
 - [x] Maybe update endpoints to require user id for fetching users, targeting query on id, not auth0_id or guest_id. this also makes it possible for admins to query users 
+- [ ] Expand refresh token / jwt to be longer than an hour
 - [ ] Update user sync from backend to auth0 (daily job/trigger)
 - [ ] Sync on registered user creation, needs to deactivate/delete the guest user
 - [ ] Sync for when a user gets admin permissions, needs to update user type
@@ -87,7 +90,7 @@
 
 **UniversalService**
 - [ ] Pagination support
-- [ ] Typed search for all games
+- [x] Typed search for all games
 - [ ] Universal join game
 
 **Admin**

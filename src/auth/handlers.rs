@@ -12,9 +12,9 @@ use tracing::info;
 
 use crate::{
     auth::{
-        auth_models::{Permission, PermissionCtx},
         db,
-        user_models::{Auth0User, PutUserRequest, Subject},
+        models::{Permission, PermissionCtx},
+        user_models::{Auth0User, PutUserRequest, SubjectId},
     },
     common::{app_state::AppState, server_error::ServerError},
 };
@@ -41,15 +41,15 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
 
 pub async fn get_user_from_subject(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<Subject>,
+    Extension(subject): Extension<SubjectId>,
     Extension(_permissions): Extension<PermissionCtx>,
 ) -> Result<impl IntoResponse, ServerError> {
     let option = match subject {
-        Subject::Guest(id) => db::get_user_by_guest_id(state.get_pool(), id).await?,
-        Subject::Registered(id) | Subject::Admin(id) => {
+        SubjectId::Guest(id) => db::get_user_by_guest_id(state.get_pool(), id).await?,
+        SubjectId::Registered(id) | SubjectId::Admin(id) => {
             db::get_user_by_auth0_id(state.get_pool(), id).await?
         }
-        Subject::Auth0 => {
+        SubjectId::Auth0 => {
             return Err(ServerError::AccessDenied);
         }
     };
@@ -67,12 +67,12 @@ pub async fn create_guest_user(
 
 pub async fn patch_user(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<Subject>,
+    Extension(subject): Extension<SubjectId>,
     Extension(permission_ctx): Extension<PermissionCtx>,
     Path(user_id): Path<i32>,
     Json(put_request): Json<PutUserRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let Subject::Registered(auth0_id) = subject else {
+    let SubjectId::Registered(auth0_id) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
@@ -89,11 +89,11 @@ pub async fn patch_user(
 
 pub async fn delete_user(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<Subject>,
+    Extension(subject): Extension<SubjectId>,
     Extension(permission_ctx): Extension<PermissionCtx>,
     Path(user_id): Path<i32>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let Subject::Registered(auth0_id) = subject else {
+    let SubjectId::Registered(auth0_id) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
@@ -109,11 +109,11 @@ pub async fn delete_user(
 
 pub async fn patch_user_activity(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<Subject>,
+    Extension(subject): Extension<SubjectId>,
     Extension(_permission_ctx): Extension<PermissionCtx>,
     Path(user_id): Path<i32>,
 ) -> Result<(), ServerError> {
-    if let Subject::Auth0 = subject {
+    if let SubjectId::Auth0 = subject {
         return Err(ServerError::AccessDenied);
     };
 
@@ -123,10 +123,10 @@ pub async fn patch_user_activity(
 
 pub async fn auth0_trigger_endpoint(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<Subject>,
+    Extension(subject): Extension<SubjectId>,
     Json(auth0_user): Json<Auth0User>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let Subject::Auth0 = subject else {
+    let SubjectId::Auth0 = subject else {
         return Err(ServerError::AccessDenied);
     };
 
@@ -138,10 +138,10 @@ pub async fn auth0_trigger_endpoint(
 
 pub async fn list_all_users(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<Subject>,
+    Extension(subject): Extension<SubjectId>,
     Extension(permission_ctx): Extension<PermissionCtx>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let Subject::Registered(_) = subject else {
+    let SubjectId::Registered(_) = subject else {
         return Err(ServerError::Api(
             StatusCode::FORBIDDEN,
             "Not allowed".into(),

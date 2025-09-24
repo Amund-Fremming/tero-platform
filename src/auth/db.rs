@@ -3,7 +3,7 @@ use sqlx::{Pool, Postgres, Row, query, query_as};
 use uuid::Uuid;
 
 use crate::{
-    auth::user_models::{Auth0User, PutUserRequest, User, UserType},
+    auth::user_models::{Auth0User, PutUserRequest, StrippedUser, User, UserType},
     common::server_error::ServerError,
 };
 
@@ -117,7 +117,7 @@ pub async fn get_user_by_auth0_id(
     pool: &Pool<Postgres>,
     auth0_id: String,
 ) -> Result<Option<User>, sqlx::Error> {
-    sqlx::query_as::<_, User>(r#"SELECT * from "user" WHERE auth0_id = $1"#)
+    sqlx::query_as::<_, User>("SELECT * from user WHERE auth0_id = $1")
         .bind(&auth0_id)
         .fetch_optional(pool)
         .await
@@ -126,17 +126,15 @@ pub async fn get_user_by_auth0_id(
 pub async fn get_user_by_guest_id(
     pool: &Pool<Postgres>,
     guest_id: Uuid,
-) -> Result<Option<User>, sqlx::Error> {
-    let mut opt = sqlx::query_as::<_, User>(r#"SELECT * from "user" WHERE guest_id = $1"#)
+) -> Result<Option<StrippedUser>, sqlx::Error> {
+    match sqlx::query_as::<_, User>("SELECT * from user WHERE guest_id = $1")
         .bind(&guest_id)
         .fetch_optional(pool)
-        .await?;
-
-    if let Some(ref mut user) = opt {
-        user.strip_sensisive_data();
+        .await?
+    {
+        None => Ok(None),
+        Some(user) => Ok(Some(user.into())),
     }
-
-    Ok(opt)
 }
 
 pub async fn patch_user_by_id(
@@ -144,7 +142,7 @@ pub async fn patch_user_by_id(
     user_id: i32,
     put_request: PutUserRequest,
 ) -> Result<(), ServerError> {
-    let mut query: String = String::from(r#"UPDATE "user" SET "#);
+    let mut query: String = String::from("UPDATE user SET");
     let mut conditions: Vec<String> = Vec::new();
 
     if let Some(name) = put_request.name {

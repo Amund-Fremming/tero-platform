@@ -1,5 +1,5 @@
 -- Add migration script here
-ALTER TABLE "spinner_player" DROP CONSTRAINT "spinner_player_user_fk";
+ALTER TABLE "spin_game_player" DROP CONSTRAINT "spinner_player_user_fk";
 ALTER TABLE "spinner_player" DROP CONSTRAINT "spinner_player_fk";
 ALTER TABLE "round" DROP CONSTRAINT "spinner_round";
 ALTER TABLE "question" DROP CONSTRAINT "quiz_question";

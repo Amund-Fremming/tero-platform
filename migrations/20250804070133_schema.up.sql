@@ -3,22 +3,18 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE user_type AS ENUM (
     'guest',
-    'admin',
     'registered'
 );
 
 CREATE TYPE game_category AS ENUM (
-    'warm_up',
     'casual',
-    'spicy',
-    'dangerous',
+    'random'
     'ladies',
     'boys'
 );
 
 CREATE TABLE "user" (
-    "id" SERIAL PRIMARY KEY,
-    "guest_id" UUID DEFAULT uuid_generate_v4(),
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "auth0_id" VARCHAR,
     "user_type" user_type NOT NULL DEFAULT 'guest',
     "last_active" TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -27,24 +23,19 @@ CREATE TABLE "user" (
     "birth_date" DATE
 );
 
-CREATE TABLE "quiz" (
+CREATE TABLE "quiz_game" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "name" VARCHAR(100) NOT NULL,
     "description" VARCHAR(150),
     "category" game_category NOT NULL DEFAULT 'casual',
     "iterations" INTEGER NOT NULL DEFAULT 0,
-    "times_played" INTEGER NOT NULL DEFAULT 0
+    "times_played" INTEGER NOT NULL DEFAULT 0,
+    "questions" TEXT[] NOT NULL
 );
 
-CREATE TABLE "question" (
-    "id" SERIAL PRIMARY KEY,
-    "quiz_id" UUID NOT NULL,
-    "title" VARCHAR(200)
-);
-
-CREATE TABLE "spinner" (
+CREATE TABLE "spin_game" (
     "id" UUID PRIMARY KEY,
-    "host_id" INTEGER NOT NULL,
+    "host_id" UUID NOT NULL,
     "name" VARCHAR(100) NOT NULL,
     "description" VARCHAR(150),
     "category" game_category NOT NULL DEFAULT 'casual',
@@ -52,28 +43,20 @@ CREATE TABLE "spinner" (
     "times_played" INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE "round" (
+CREATE TABLE "spin_game_round" (
     "id" UUID PRIMARY KEY,
-    "spinner_id" UUID NOT NULL,
+    "spin_game_id" UUID NOT NULL,
     "participants" INTEGER NOT NULL DEFAULT 0,
-    "read_before" BOOLEAN NOT NULL,
-    "title" VARCHAR(200)
+    "content" VARCHAR(200)
 );
 
-CREATE TABLE "spinner_player" (
-    "spinner_id" UUID NOT NULL,
-    "user_id" INTEGER NOT NULL,
-    "times_choosen" INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY ("spinner_id", "user_id")
-);
+ALTER TABLE "spin_game_round" ADD CONSTRAINT "spin_game_round_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
+ALTER TABLE "spin_game_player" ADD CONSTRAINT "spin_game_player_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
+ALTER TABLE "spin_game_player" ADD CONSTRAINT "spin_player_user_fk" FOREIGN KEY ("user_id") REFERENCES "user" ("id");
 
-ALTER TABLE "question" ADD CONSTRAINT "quiz_question" FOREIGN KEY ("quiz_id") REFERENCES "quiz" ("id");
-ALTER TABLE "round" ADD CONSTRAINT "spinner_round" FOREIGN KEY ("spinner_id") REFERENCES "spinner" ("id");
-ALTER TABLE "spinner_player" ADD CONSTRAINT "spinner_player_fk" FOREIGN KEY ("spinner_id") REFERENCES "spinner" ("id");
-ALTER TABLE "spinner_player" ADD CONSTRAINT "spinner_player_user_fk" FOREIGN KEY ("user_id") REFERENCES "user" ("id");
-
-CREATE INDEX "idx_guest_user_id" ON "user" ("guest_id");
-CREATE INDEX "idx_quiz_category" ON "quiz" ("category");
-CREATE INDEX "idx_spinner_category" ON "spinner" ("category");
-CREATE INDEX "idx_round_id" ON "round" ("id");
-CREATE INDEX "idx_spinner_id" ON "spinner" ("id");
+CREATE INDEX "idx_guest_id" ON "user" ("guest_id");
+CREATE INDEX "idx_auth0_id" ON "user" ("guest_id");
+CREATE INDEX "idx_quiz_category" ON "quiz_game" ("category");
+CREATE INDEX "idx_spin_category" ON "spin_game" ("category");
+CREATE INDEX "idx_round_id" ON "spin_game_round" ("id");
+CREATE INDEX "idx_spin_id" ON "spin_game" ("id");

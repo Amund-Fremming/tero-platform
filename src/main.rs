@@ -1,5 +1,3 @@
-use std::env;
-
 use axum::{
     Router,
     middleware::{from_fn, from_fn_with_state},

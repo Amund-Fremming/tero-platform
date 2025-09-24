@@ -4,8 +4,6 @@ use std::hash::Hash;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{quiz::models::Quiz, spin::models::SpinGame};
-
 pub trait Identify {
     fn get_id(&self) -> Uuid;
 }
@@ -64,55 +62,25 @@ pub struct PagedRequest {
     pub page_num: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct GameBase {
-    id: Uuid,
-    name: String,
-    description: Option<String>,
-    category: GameCategory,
-    iterations: i32,
-}
-
-impl From<Quiz> for GameBase {
-    fn from(value: Quiz) -> Self {
-        Self {
-            id: value.id,
-            name: value.name,
-            description: value.description,
-            category: value.category,
-            iterations: value.iterations,
-        }
-    }
-}
-
-impl From<SpinGame> for GameBase {
-    fn from(value: SpinGame) -> Self {
-        Self {
-            id: value.id,
-            name: value.name,
-            description: value.description,
-            category: value.category,
-            iterations: value.iterations,
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct GameBase {
+    pub id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub category: GameCategory,
+    pub iterations: i32,
+    pub times_played: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PagedResponse {
     games: Vec<GameBase>,
+    has_next: bool,
 }
 
 impl PagedResponse {
-    pub fn from_quizzes(quizzes: Vec<Quiz>) -> Self {
-        Self {
-            games: quizzes.into_iter().map(|q| q.into()).collect(),
-        }
-    }
-
-    pub fn from_spinners(spinners: Vec<SpinGame>) -> Self {
-        Self {
-            games: spinners.into_iter().map(|s| s.into()).collect(),
-        }
+    pub fn new(games: Vec<GameBase>, has_next: bool) -> Self {
+        Self { games, has_next }
     }
 }
 

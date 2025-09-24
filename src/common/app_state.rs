@@ -7,7 +7,7 @@ use sqlx::{Pool, Postgres};
 
 use crate::{
     client::gamesession_client::GameSessionClient, common::server_error::ServerError,
-    config::config::CONFIG, quiz::models::Quiz, spin::models::SpinGame,
+    config::config::CONFIG, quiz::models::QuizGame, spin::models::SpinGame,
 };
 
 #[derive(Debug)]
@@ -16,7 +16,7 @@ pub struct AppState {
     jwks: Jwks,
     client: Client,
     gs_client: GameSessionClient,
-    quiz_cache: GustCache<Vec<Quiz>>,
+    quiz_cache: GustCache<Vec<QuizGame>>,
     spin_cache: GustCache<Vec<SpinGame>>,
 }
 
@@ -70,7 +70,7 @@ impl AppState {
         &self.jwks
     }
 
-    pub fn get_quiz_cache(&self) -> &GustCache<Vec<Quiz>> {
+    pub fn get_quiz_cache(&self) -> &GustCache<Vec<QuizGame>> {
         &self.quiz_cache
     }
 

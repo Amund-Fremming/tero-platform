@@ -1,10 +1,23 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::common::models::{CreateGameRequest, GameCategory, Identify};
+use crate::common::models::{CreateGameRequest, GameBase, GameCategory, Identify};
+
+impl Into<GameBase> for QuizGame {
+    fn into(self) -> GameBase {
+        GameBase {
+            id: self.id,
+            name: self.name,
+            description: self.description,
+            category: self.category,
+            iterations: self.iterations,
+            times_played: self.times_played,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
-pub struct Quiz {
+pub struct QuizGame {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
@@ -57,7 +70,7 @@ impl QuizSession {
         }
     }
 
-    pub fn from_game_and_questions(quiz: Quiz, mut questions: Vec<Question>) -> Self {
+    pub fn from_game_and_questions(quiz: QuizGame, mut questions: Vec<Question>) -> Self {
         Self {
             id: quiz.id,
             name: quiz.name,
