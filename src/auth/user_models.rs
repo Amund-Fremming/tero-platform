@@ -44,11 +44,20 @@ pub struct User {
     pub birth_date: Option<NaiveDate>,
 }
 
-impl Into<StrippedUser> for User {
-    fn into(self) -> StrippedUser {
-        StrippedUser {
+impl User {
+    pub fn strip(&self) -> Self {
+        Self {
             id: self.id,
-            given_name: self.given_name,
+            auth0_id: None,
+            user_type: UserType::Guest,
+            last_active: Utc::now(),
+            last_updated: Utc::now(),
+            created_at: Utc::now(),
+            given_name: self.given_name.clone(),
+            family_name: None,
+            email: None,
+            email_verified: None,
+            birth_date: None,
         }
     }
 }

@@ -51,12 +51,13 @@ CREATE TABLE "spin_game_round" (
 );
 
 ALTER TABLE "spin_game_round" ADD CONSTRAINT "spin_game_round_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
-ALTER TABLE "spin_game_player" ADD CONSTRAINT "spin_game_player_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
-ALTER TABLE "spin_game_player" ADD CONSTRAINT "spin_player_user_fk" FOREIGN KEY ("user_id") REFERENCES "user" ("id");
 
-CREATE INDEX "idx_guest_id" ON "user" ("guest_id");
+CREATE INDEX "idx_user_id" ON "user" ("id");
 CREATE INDEX "idx_auth0_id" ON "user" ("guest_id");
-CREATE INDEX "idx_quiz_category" ON "quiz_game" ("category");
-CREATE INDEX "idx_spin_category" ON "spin_game" ("category");
-CREATE INDEX "idx_round_id" ON "spin_game_round" ("id");
-CREATE INDEX "idx_spin_id" ON "spin_game" ("id");
+
+CREATE INDEX "idx_quiz_game_id" ON "quiz_game" ("id");
+CREATE INDEX "idx_quiz_game_category" ON "quiz_game" ("category");
+
+CREATE INDEX "idx_spin_game_id" ON "spin_game" ("id");
+CREATE INDEX "idx_spin_game_category" ON "spin_game" ("category");
+CREATE INDEX "idx_spin_game_round_id" ON "spin_game_round" ("id");

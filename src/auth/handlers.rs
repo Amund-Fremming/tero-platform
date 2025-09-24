@@ -46,9 +46,7 @@ pub async fn get_user_from_subject(
 ) -> Result<impl IntoResponse, ServerError> {
     let option = match subject {
         SubjectId::Guest(id) => db::get_user_by_guest_id(state.get_pool(), id).await?,
-        SubjectId::Registered(id) | SubjectId::Admin(id) => {
-            db::get_user_by_auth0_id(state.get_pool(), id).await?
-        }
+        SubjectId::Registered(id) => db::get_user_by_auth0_id(state.get_pool(), id).await?,
         SubjectId::Auth0 => {
             return Err(ServerError::AccessDenied);
         }

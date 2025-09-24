@@ -2,10 +2,7 @@ use sqlx::{Pool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    common::{
-        models::{PagedRequest, PagedResponse},
-        server_error::ServerError,
-    },
+    common::server_error::ServerError,
     spin::models::{Round, SpinGame, SpinSession},
 };
 

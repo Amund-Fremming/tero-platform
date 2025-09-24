@@ -126,14 +126,15 @@ pub async fn get_user_by_auth0_id(
 pub async fn get_user_by_guest_id(
     pool: &Pool<Postgres>,
     guest_id: Uuid,
-) -> Result<Option<StrippedUser>, sqlx::Error> {
-    match sqlx::query_as::<_, User>("SELECT * from user WHERE guest_id = $1")
+) -> Result<Option<User>, sqlx::Error> {
+    let option = sqlx::query_as::<_, User>("SELECT * from user WHERE id = $1")
         .bind(&guest_id)
         .fetch_optional(pool)
-        .await?
-    {
+        .await?;
+
+    match option {
+        Some(u) => Ok(Some(u.strip())),
         None => Ok(None),
-        Some(user) => Ok(Some(user.into())),
     }
 }
 
