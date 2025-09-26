@@ -86,15 +86,17 @@
 
 **UniversalService**
 - [x] Pagination support
-- [x] Typed search for all games
+- [ ] typed search by game, category, page and most played
 - [ ] Universal join game
 
-**Name generator**
-- [ ] Setup index and tables
-- [ ] Setup db handlers
-- [ ] Implement for games
+**KeyVault**
+- [x] Setup index and tables
+- [x] Setup db handlers
+- [x] Implement core
+- [ ] strategy for removing no longer used slugs
 
 **Admin**
+- [ ] acrive games?
 - [ ] Endponints for user history, how many active last week, last month and today
 - [ ] Endpoints for fetching logs based on time or ceverity
 - [ ] Possibility to view config like redirect (for debugging)
