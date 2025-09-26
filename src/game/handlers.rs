@@ -12,17 +12,17 @@ use uuid::Uuid;
 use crate::{
     auth::{db::get_user_id_by_auth0_id, models::SubjectId},
     game::{
-        db,
+        db::{self, increment_times_played},
         models::{CreateGameRequest, CreateSessionRequest, GameType, PagedRequest},
     },
     key_vault::key_vault::KeyPair,
     quiz::{
-        db::{get_quiz_session_by_id, increment_quiz_game, tx_persist_quizsession},
+        db::{get_quiz_session_by_id, tx_persist_quiz_session},
         models::QuizSession,
     },
     server::{app_state::AppState, server_error::ServerError},
     spin::{
-        db::{get_spin_session_by_game_id, increment_spin_game, tx_persist_spinsession},
+        db::{get_spin_session_by_game_id, tx_persist_spinsession},
         models::SpinSession,
     },
 };
@@ -136,14 +136,15 @@ async fn persist_game_session(
     Json(request): Json<CreateSessionRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     // TODO - add m2m integration check here
+    let pool = state.get_pool();
 
     match request.game_type {
         GameType::Spin => {
             let session: SpinSession = serde_json::from_value(request.payload)?;
             match session.times_played {
-                0 => increment_spin_game(state.get_pool(), &session.id).await?,
+                0 => increment_times_played(pool, GameType::Spin, &session.id).await?,
                 _ => {
-                    let mut tx = state.get_pool().begin().await?;
+                    let mut tx = pool.begin().await?;
                     tx_persist_spinsession(&mut tx, &session).await?;
                 }
             }
@@ -151,11 +152,8 @@ async fn persist_game_session(
         GameType::Quiz => {
             let session: QuizSession = serde_json::from_value(request.payload)?;
             match session.times_played {
-                0 => increment_quiz_game(state.get_pool(), &session.id).await?,
-                _ => {
-                    let mut tx = state.get_pool().begin().await?;
-                    tx_persist_quizsession(&mut tx, &session).await?;
-                }
+                0 => increment_times_played(pool, GameType::Quiz, &session.id).await?,
+                _ => tx_persist_quiz_session(pool, &session).await?,
             }
         }
     }

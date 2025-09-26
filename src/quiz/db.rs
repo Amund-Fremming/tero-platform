@@ -40,15 +40,10 @@ pub async fn get_quiz_session_by_id(
     Ok(session)
 }
 
-pub async fn increment_quiz_game(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), sqlx::Error> {
-    //
-    Ok(())
-}
-
-pub async fn tx_persist_quizsession(
-    tx: &mut Transaction<'_, Postgres>,
+pub async fn tx_persist_quiz_session(
+    pool: &Pool<Postgres>,
     session: &QuizSession,
 ) -> Result<(), sqlx::Error> {
-    todo!();
+    //
     Ok(())
 }

@@ -42,11 +42,6 @@ pub async fn get_spin_session_by_game_id(
     Ok(session)
 }
 
-pub async fn increment_spin_game(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), sqlx::Error> {
-    //
-    Ok(())
-}
-
 pub async fn tx_persist_spinsession(
     tx: &mut Transaction<'_, Postgres>,
     session: &SpinSession,

@@ -27,6 +27,7 @@ pub struct QuizGame {
     pub category: GameCategory,
     pub iterations: i32,
     pub times_played: i32,
+    pub questions: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -56,6 +57,18 @@ impl Identify for QuizSession {
 }
 
 impl QuizSession {
+    pub fn to_incremented_game(&self) -> QuizGame {
+        QuizGame {
+            id: self.id,
+            name: self.name.clone(),
+            description: self.description.clone(),
+            category: self.category.clone(),
+            iterations: self.iterations.into(),
+            times_played: self.times_played,
+            questions: self.questions.clone(),
+        }
+    }
+
     pub fn from_create_request(request: CreateGameRequest) -> Self {
         Self {
             id: Uuid::new_v4(),

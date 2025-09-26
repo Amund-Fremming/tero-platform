@@ -1,6 +1,10 @@
 use sqlx::{Pool, Postgres};
+use uuid::Uuid;
 
-use crate::game::models::{GameBase, GameType, PagedRequest, PagedResponse};
+use crate::{
+    game::models::{GameBase, GameType, PagedRequest, PagedResponse},
+    server::server_error::ServerError,
+};
 
 pub async fn get_game_page(
     pool: &Pool<Postgres>,
@@ -32,4 +36,28 @@ pub async fn get_game_page(
     let page = PagedResponse::new(games, has_next);
 
     Ok(page)
+}
+
+pub async fn increment_times_played(
+    pool: &Pool<Postgres>,
+    game_type: GameType,
+    game_id: &Uuid,
+) -> Result<(), ServerError> {
+    let query = format!(
+        r#"
+        UPDATE {}
+        SET times_played = times_played + 1
+        WHERE id = $1
+        "#,
+        game_type.to_string()
+    );
+    let row = sqlx::query(&query).bind(game_id).execute(pool).await?;
+
+    if row.rows_affected() == 0 {
+        return Err(ServerError::Internal(
+            "Tried to increment non existing spin game".into(),
+        ));
+    }
+
+    Ok(())
 }
