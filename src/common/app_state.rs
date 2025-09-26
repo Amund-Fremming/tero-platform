@@ -7,15 +7,16 @@ use sqlx::{Pool, Postgres};
 
 use crate::{
     client::gamesession_client::GameSessionClient, common::server_error::ServerError,
-    config::config::CONFIG, quiz::models::QuizGame, spin::models::SpinGame,
+    config::config::CONFIG, key_generation::key_vault::KeyVault, quiz::models::QuizGame,
+    spin::models::SpinGame,
 };
 
-#[derive(Debug)]
 pub struct AppState {
     pool: Pool<Postgres>,
     jwks: Jwks,
     client: Client,
     gs_client: GameSessionClient,
+    key_vault: KeyVault,
     quiz_cache: GustCache<Vec<QuizGame>>,
     spin_cache: GustCache<Vec<SpinGame>>,
 }
@@ -47,6 +48,7 @@ impl AppState {
         let response = client.get(jwks_url).send().await?;
         let jwks = response.json::<Jwks>().await?;
 
+        let key_vault = KeyVault::new();
         let quiz_cache = GustCache::from_ttl(chrono::Duration::minutes(2));
         let spin_cache = GustCache::from_ttl(chrono::Duration::minutes(2));
 
@@ -55,6 +57,7 @@ impl AppState {
             jwks,
             client,
             gs_client,
+            key_vault,
             quiz_cache,
             spin_cache,
         });
@@ -68,6 +71,10 @@ impl AppState {
 
     pub fn get_jwks(&self) -> &Jwks {
         &self.jwks
+    }
+
+    pub fn get_key_vault(&self) -> &KeyVault {
+        &self.key_vault
     }
 
     pub fn get_quiz_cache(&self) -> &GustCache<Vec<QuizGame>> {

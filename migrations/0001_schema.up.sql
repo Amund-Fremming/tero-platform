@@ -19,10 +19,9 @@ CREATE TYPE gender AS ENUM (
     'u'   
 )
 
-CREATE TABLE "game_name" (
-    "id" PRIMARY KEY SERIAL,
-    "name" VARCHAR(20) NOT NULL,
-    "in_use" BOOLEAN NOT NULL
+CREATE TABLE "join_key" (
+    "id" PRIMARY KEY VARCHAR(7),
+    "name" VARCHAR(4) NOT NULL
 )
 
 CREATE TABLE "user" (
@@ -69,7 +68,7 @@ CREATE TABLE "spin_game_round" (
 
 ALTER TABLE "spin_game_round" ADD CONSTRAINT "spin_game_round_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
 
-CREATE INDEX "idx_game_name_in_use" ON "game_name"("name", "in_use")
+CREATE INDEX "idx_join_key_id" ON "join_key" ("id");
 
 CREATE INDEX "idx_user_id" ON "user" ("id");
 CREATE INDEX "idx_auth0_id" ON "user" ("guest_id");

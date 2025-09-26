@@ -43,7 +43,7 @@ pub struct Question {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QuizSession {
     pub id: Uuid,
-    pub join_key: String,
+    pub join_key: Option<String>,
     pub name: String,
     pub description: Option<String>,
     pub category: GameCategory,
@@ -59,10 +59,10 @@ impl Identify for QuizSession {
 }
 
 impl QuizSession {
-    pub fn from_create_request(join_key: String, request: CreateGameRequest) -> Self {
+    pub fn from_create_request(request: CreateGameRequest) -> Self {
         Self {
             id: Uuid::new_v4(),
-            join_key,
+            join_key: None,
             name: request.name,
             description: request.description,
             category: request.category.unwrap_or(GameCategory::Default),
@@ -72,14 +72,10 @@ impl QuizSession {
         }
     }
 
-    pub fn from_game_and_questions(
-        join_key: String,
-        quiz: QuizGame,
-        mut questions: Vec<Question>,
-    ) -> Self {
+    pub fn from_game_and_questions(quiz: QuizGame, mut questions: Vec<Question>) -> Self {
         Self {
             id: quiz.id,
-            join_key,
+            join_key: None,
             name: quiz.name,
             description: quiz.description,
             category: quiz.category,
@@ -87,5 +83,9 @@ impl QuizSession {
             current_iteration: 0,
             questions: questions.iter_mut().map(|q| q.title.clone()).collect(),
         }
+    }
+
+    pub fn set_join_key(&mut self, key: &str) {
+        self.join_key = Some(key.into());
     }
 }

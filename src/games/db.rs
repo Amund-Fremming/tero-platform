@@ -1,5 +1,4 @@
 use sqlx::{Pool, Postgres};
-use tracing::error;
 
 use crate::games::models::{GameBase, GameType, PagedRequest, PagedResponse};
 
@@ -33,24 +32,4 @@ pub async fn get_game_page(
     let page = PagedResponse::new(games, has_next);
 
     Ok(page)
-}
-
-pub async fn get_random_name(pool: &Pool<Postgres>) -> Result<Option<String>, sqlx::Error> {
-    let option = sqlx::query_scalar::<_, String>(
-        r#"
-        SELECT name FROM "game_name"
-        WHERE in_use = false
-        ORDER BY RANDOM()
-        LIMIT 1
-        "#,
-    )
-    .fetch_optional(pool)
-    .await?;
-
-    if option.is_none() {
-        // TODO - add audit log
-        error!("All game names are in use or there is none in the database");
-    }
-
-    Ok(option)
 }

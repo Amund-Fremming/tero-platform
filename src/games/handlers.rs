@@ -84,16 +84,22 @@ async fn initiate_game_session(
 
     let client = state.get_client();
     let gs_client = state.get_session_client();
+    let key = "TODO";
 
     let response = match game_type {
         GameType::Spin => {
-            let session = get_spin_session_by_game_id(state.get_pool(), user_id, &game_id).await?;
+            let mut session =
+                get_spin_session_by_game_id(state.get_pool(), user_id, &game_id).await?;
+
+            session.set_join_key(&key);
             gs_client
                 .initiate_gamesession(game_type, session, client)
                 .await?
         }
         GameType::Quiz => {
-            let session = get_quiz_session_by_id(state.get_pool(), &game_id).await?;
+            let mut session = get_quiz_session_by_id(state.get_pool(), &game_id).await?;
+
+            session.set_join_key(&key);
             gs_client
                 .initiate_gamesession(game_type, session, client)
                 .await?

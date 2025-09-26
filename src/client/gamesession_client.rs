@@ -4,9 +4,8 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    games::{
-        db::get_random_name,
-        models::{CreateGameRequest, CreateSessionRequest, GameType, Identify, JoinSessionRequest},
+    games::models::{
+        CreateGameRequest, CreateSessionRequest, GameType, Identify, JoinSessionRequest,
     },
     quiz::models::QuizSession,
     spin::models::SpinSession,

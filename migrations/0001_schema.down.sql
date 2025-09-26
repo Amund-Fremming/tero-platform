@@ -4,7 +4,7 @@
 ALTER TABLE "spin_game_round" DROP CONSTRAINT "spin_game_round_fk";
 
 -- Drop indexes
-DROP INDEX IF EXISTS "idx_game_name_in_use";
+DROP INDEX IF EXISTS "idx_join_key_id";
 
 DROP INDEX IF EXISTS "idx_user_id";
 DROP INDEX IF EXISTS "idx_auth0_id";

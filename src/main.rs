@@ -21,6 +21,7 @@ mod common;
 mod config;
 mod games;
 mod health;
+mod key_generation;
 mod mw;
 mod quiz;
 mod spin;
