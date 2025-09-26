@@ -17,7 +17,7 @@ use crate::{
     },
     key_vault::key_vault::KeyPair,
     quiz::{
-        db::{get_quiz_session_by_id, tx_persist_quiz_session},
+        db::{get_quiz_session_by_id, persist_quiz_session},
         models::QuizSession,
     },
     server::{app_state::AppState, server_error::ServerError},
@@ -153,7 +153,7 @@ async fn persist_game_session(
             let session: QuizSession = serde_json::from_value(request.payload)?;
             match session.times_played {
                 0 => increment_times_played(pool, GameType::Quiz, &session.id).await?,
-                _ => tx_persist_quiz_session(pool, &session).await?,
+                _ => persist_quiz_session(pool, &session).await?,
             }
         }
     }

@@ -45,15 +45,46 @@ pub async fn get_spin_session_by_game_id(
 pub async fn tx_persist_spinsession(
     tx: &mut Transaction<'_, Postgres>,
     session: &SpinSession,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), ServerError> {
     let (game, rounds) = session.to_game_and_rounds();
 
-    sqlx::query(
+    let game_row = sqlx::query(
         r#"
         INSERT INTO "spin_game" (id, name, description, category, iterations, times_played)
-
+        VALUES ($1, $2, $3, $4, $5, $6)
         "#,
-    );
+    )
+    .bind(&game.id)
+    .bind(&game.name)
+    .bind(&game.description)
+    .bind(&game.category)
+    .bind(&game.iterations)
+    .bind(&game.times_played)
+    .execute(&mut **tx)
+    .await?;
+
+    if game_row.rows_affected() == 0 {
+        return Err(ServerError::Internal(
+            "Failed to persist spin game session".into(),
+        ));
+    }
+
+    if rounds.is_empty() {}
+
+    let round_row = sqlx::query(
+        r#"
+        INSERT INTO "spin_game_rounds" (id, spin_game_id, participants, consent)
+        VALUES ($1, $2, $3, $4)
+    "#,
+    )
+    .execute(&mut **tx)
+    .await?;
+
+    if game_row.rows_affected() == 0 || round_row.rows_affected() == 0 {
+        return Err(ServerError::Internal(
+            "Failed to insert game session values for game session".into(),
+        ));
+    }
 
     Ok(())
 }

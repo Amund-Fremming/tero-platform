@@ -40,7 +40,7 @@ pub async fn get_quiz_session_by_id(
     Ok(session)
 }
 
-pub async fn tx_persist_quiz_session(
+pub async fn persist_quiz_session(
     pool: &Pool<Postgres>,
     session: &QuizSession,
 ) -> Result<(), sqlx::Error> {
