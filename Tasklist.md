@@ -89,10 +89,11 @@
 - [ ] Typed text search for all games (own endpoint)
 - [ ] Universal join game
 
-**Name generator**
+**KeyVault**
 - [x] Setup index and tables
 - [x] Setup db handlers
 - [x] Implement core
+- [ ] strategy for removing no longer used slugs
 
 **Admin**
 - [ ] acrive games?
