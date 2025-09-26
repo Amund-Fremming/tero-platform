@@ -16,7 +16,7 @@ use crate::{
         db,
         models::{Permission, PermissionCtx},
     },
-    common::{app_state::AppState, server_error::ServerError},
+    server::{app_state::AppState, server_error::ServerError},
 };
 
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {

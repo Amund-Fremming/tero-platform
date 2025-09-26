@@ -4,7 +4,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::games::models::Gender;
+use crate::game::models::Gender;
 
 #[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, Clone)]
 pub enum Permission {
@@ -109,12 +109,6 @@ impl User {
             birth_date: None,
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StrippedUser {
-    pub id: Uuid,
-    pub given_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

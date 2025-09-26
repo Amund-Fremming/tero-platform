@@ -6,8 +6,8 @@ use serde::Deserialize;
 use sqlx::{Pool, Postgres};
 
 use crate::{
-    client::gamesession_client::GameSessionClient, common::server_error::ServerError,
-    config::config::CONFIG, key_generation::key_vault::KeyVault, quiz::models::QuizGame,
+    client::gamesession_client::GameSessionClient, config::config::CONFIG,
+    key_vault::key_vault::KeyVault, quiz::models::QuizGame, server::server_error::ServerError,
     spin::models::SpinGame,
 };
 

@@ -4,7 +4,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    games::models::{
+    game::models::{
         CreateGameRequest, CreateSessionRequest, GameType, Identify, JoinSessionRequest,
     },
     quiz::models::QuizSession,
@@ -19,12 +19,6 @@ pub struct GameSessionResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GameSessionClientError {
-    #[error("Failed to initialize game: {0}")]
-    Initialize(String),
-
-    #[error("Failed to initialize game: {0}")]
-    Create(String),
-
     #[error("Http request failed: {0}")]
     Http(#[from] reqwest::Error),
 

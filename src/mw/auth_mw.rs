@@ -13,11 +13,11 @@ use uuid::Uuid;
 
 use crate::{
     auth::models::{Claims, PermissionCtx, SubjectId},
-    common::{
+    config::config::CONFIG,
+    server::{
         app_state::{AppState, Jwks},
         server_error::ServerError,
     },
-    config::config::CONFIG,
 };
 
 static AUTH0_WEBHOOK_KEY: &str = "Auth0-Webhook-Key";

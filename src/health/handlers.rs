@@ -5,8 +5,8 @@ use reqwest::StatusCode;
 use serde_json::json;
 
 use crate::{
-    common::{app_state::AppState, server_error::ServerError},
     health::db,
+    server::{app_state::AppState, server_error::ServerError},
 };
 
 pub fn health_routes(state: Arc<AppState>) -> Router {

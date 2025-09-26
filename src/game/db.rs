@@ -1,6 +1,6 @@
 use sqlx::{Pool, Postgres};
 
-use crate::games::models::{GameBase, GameType, PagedRequest, PagedResponse};
+use crate::game::models::{GameBase, GameType, PagedRequest, PagedResponse};
 
 pub async fn get_game_page(
     pool: &Pool<Postgres>,

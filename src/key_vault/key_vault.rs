@@ -1,19 +1,22 @@
-use std::{
-    collections::HashSet,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashSet, sync::Arc};
 
 use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
-use tracing::error;
+use tokio::sync::RwLock;
 
-use crate::{common::server_error::ServerError, key_generation::db};
+use crate::{key_vault::db, server::server_error::ServerError};
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct JoinKey {
     pub id: String,
     pub word: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KeyPair {
+    pub id: String,
+    pub key: String,
 }
 
 pub struct KeyVault {
@@ -28,22 +31,14 @@ impl KeyVault {
     }
 
     /// Format: `S1_0001 S2_0002`
-    pub fn remove_key(&self, combined_id: &str) -> Result<(), ServerError> {
-        let mut lock = self.in_use.write().map_err(|e| {
-            error!("KeyVault write-lock error: {}", e);
-            ServerError::PoisonError
-        })?;
-
+    pub async fn remove_key(&self, combined_id: &str) {
+        let mut lock = self.in_use.write().await;
         lock.remove(combined_id);
-        Ok(())
     }
 
     /// Creates a new unique key
-    pub async fn create_key(&self, pool: &Pool<Postgres>) -> Result<String, ServerError> {
-        let lock = self.in_use.read().map_err(|e| {
-            error!("KeyVault read-lock error: {}", e);
-            ServerError::PoisonError
-        })?;
+    pub async fn create_key(&self, pool: &Pool<Postgres>) -> Result<KeyPair, ServerError> {
+        let lock = self.in_use.read().await;
 
         let slot1_id: String;
         let slot2_id: String;
@@ -60,16 +55,15 @@ impl KeyVault {
             };
         }
 
-        let mut lock = self.in_use.write().map_err(|e| {
-            error!("KeyVault write-lock error: {}", e);
-            ServerError::PoisonError
-        })?;
-
+        let mut lock = self.in_use.write().await;
         let combined_id = format!("{slot1_id} {slot2_id}");
-        lock.insert(combined_id);
+        lock.insert(combined_id.clone());
         let join_key = db::get_word_set(pool, &[&slot1_id, &slot2_id]).await?;
 
-        Ok(join_key)
+        Ok(KeyPair {
+            id: combined_id,
+            key: join_key,
+        })
     }
 
     fn get_random_id(slot: u8) -> Result<String, ServerError> {

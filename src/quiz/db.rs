@@ -2,8 +2,8 @@ use sqlx::{Pool, Postgres, Transaction, query_as};
 use uuid::Uuid;
 
 use crate::{
-    common::server_error::ServerError,
     quiz::models::{Question, QuizGame, QuizSession},
+    server::server_error::ServerError,
 };
 
 pub async fn get_quiz_session_by_id(
@@ -38,6 +38,11 @@ pub async fn get_quiz_session_by_id(
 
     let session = QuizSession::from_game_and_questions(quiz, questions);
     Ok(session)
+}
+
+pub async fn increment_quiz_game(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), sqlx::Error> {
+    //
+    Ok(())
 }
 
 pub async fn tx_persist_quizsession(

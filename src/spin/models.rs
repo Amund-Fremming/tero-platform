@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::games::models::{CreateGameRequest, GameBase, GameCategory, Identify};
+use crate::{
+    game::models::{CreateGameRequest, GameBase, GameCategory, Identify},
+    key_vault::key_vault::KeyPair,
+};
 
 impl Into<GameBase> for SpinGame {
     fn into(self) -> GameBase {
@@ -38,7 +41,7 @@ pub struct Round {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpinSession {
     pub id: Uuid,
-    pub join_key: Option<String>,
+    pub join_key: Option<KeyPair>,
     pub host_id: Uuid,
     pub name: String,
     pub description: Option<String>,
@@ -100,7 +103,7 @@ impl SpinSession {
         (game, rounds)
     }
 
-    pub fn set_join_key(&mut self, key: &str) {
-        self.join_key = Some(key.into());
+    pub fn set_key(&mut self, pair: KeyPair) {
+        self.join_key = Some(pair);
     }
 }

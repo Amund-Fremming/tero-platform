@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::games::models::{CreateGameRequest, GameBase, GameCategory, Identify};
+use crate::{
+    game::models::{CreateGameRequest, GameBase, GameCategory, Identify},
+    key_vault::key_vault::KeyPair,
+};
 
 impl Into<GameBase> for QuizGame {
     fn into(self) -> GameBase {
@@ -26,13 +29,6 @@ pub struct QuizGame {
     pub times_played: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateQuizRequest {
-    name: String,
-    description: Option<String>,
-    category: Option<GameCategory>,
-}
-
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Question {
     id: i32,
@@ -43,13 +39,14 @@ pub struct Question {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QuizSession {
     pub id: Uuid,
-    pub join_key: Option<String>,
+    pub join_key: Option<KeyPair>,
     pub name: String,
     pub description: Option<String>,
     pub category: GameCategory,
     pub iterations: u8,
     pub current_iteration: u8,
     pub questions: Vec<String>,
+    pub times_played: i32,
 }
 
 impl Identify for QuizSession {
@@ -69,6 +66,7 @@ impl QuizSession {
             iterations: 0,
             current_iteration: 0,
             questions: vec![],
+            times_played: 0,
         }
     }
 
@@ -82,10 +80,11 @@ impl QuizSession {
             iterations: u8::try_from(quiz.iterations).ok().unwrap(),
             current_iteration: 0,
             questions: questions.iter_mut().map(|q| q.title.clone()).collect(),
+            times_played: quiz.times_played,
         }
     }
 
-    pub fn set_join_key(&mut self, key: &str) {
-        self.join_key = Some(key.into());
+    pub fn set_key(&mut self, key: KeyPair) {
+        self.join_key = Some(key);
     }
 }

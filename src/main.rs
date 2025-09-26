@@ -8,22 +8,22 @@ use tracing_subscriber::FmtSubscriber;
 
 use crate::{
     auth::handlers::{protected_auth_routes, public_auth_routes},
-    common::app_state::AppState,
     config::config::CONFIG,
-    games::handlers::games_routes,
+    game::handlers::games_routes,
     health::handlers::health_routes,
     mw::{auth_mw::auth_mw, request_mw::request_mw},
+    server::app_state::AppState,
 };
 
 mod auth;
 mod client;
-mod common;
 mod config;
-mod games;
+mod game;
 mod health;
-mod key_generation;
+mod key_vault;
 mod mw;
 mod quiz;
+mod server;
 mod spin;
 
 #[tokio::main]

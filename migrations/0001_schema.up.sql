@@ -51,7 +51,6 @@ CREATE TABLE "quiz_game" (
 
 CREATE TABLE "spin_game" (
     "id" UUID PRIMARY KEY,
-    "host_id" UUID NOT NULL,
     "name" VARCHAR(100) NOT NULL,
     "description" VARCHAR(150),
     "category" game_category NOT NULL DEFAULT 'casual',
