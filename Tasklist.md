@@ -86,7 +86,7 @@
 
 **UniversalService**
 - [x] Pagination support
-- [ ] Typed text search for all games (own endpoint)
+- [ ] typed search by game, category, page and most played
 - [ ] Universal join game
 
 **KeyVault**
