@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::{
     game::models::{CreateGameRequest, GameBase, GameCategory, Identify},
-    key_vault::key_vault::KeyPair,
+    key_vault::models::KeyPair,
 };
 
 impl Into<GameBase> for QuizGame {
@@ -30,13 +30,6 @@ pub struct QuizGame {
     pub questions: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct Question {
-    id: i32,
-    quiz_id: i32,
-    title: String,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QuizSession {
     pub id: Uuid,
@@ -57,18 +50,6 @@ impl Identify for QuizSession {
 }
 
 impl QuizSession {
-    pub fn to_incremented_game(&self) -> QuizGame {
-        QuizGame {
-            id: self.id,
-            name: self.name.clone(),
-            description: self.description.clone(),
-            category: self.category.clone(),
-            iterations: self.iterations.into(),
-            times_played: self.times_played,
-            questions: self.questions.clone(),
-        }
-    }
-
     pub fn from_create_request(request: CreateGameRequest) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -83,7 +64,7 @@ impl QuizSession {
         }
     }
 
-    pub fn from_game_and_questions(quiz: QuizGame, mut questions: Vec<Question>) -> Self {
+    pub fn from_game(quiz: QuizGame) -> Self {
         Self {
             id: quiz.id,
             join_key: None,
@@ -92,7 +73,7 @@ impl QuizSession {
             category: quiz.category,
             iterations: u8::try_from(quiz.iterations).ok().unwrap(),
             current_iteration: 0,
-            questions: questions.iter_mut().map(|q| q.title.clone()).collect(),
+            questions: quiz.questions,
             times_played: quiz.times_played,
         }
     }

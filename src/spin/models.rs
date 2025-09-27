@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::{
     game::models::{CreateGameRequest, GameBase, GameCategory, Identify},
-    key_vault::key_vault::KeyPair,
+    key_vault::models::KeyPair,
 };
 
 impl Into<GameBase> for SpinGame {

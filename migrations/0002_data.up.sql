@@ -1,6 +1,5 @@
 -- Add up migration script here
 
-
 -- SLOT 1
 INSERT INTO "join_key" ("id", "word") VALUES ('S1_0001', 'arg');
 INSERT INTO "join_key" ("id", "word") VALUES ('S1_0002', 'aut');

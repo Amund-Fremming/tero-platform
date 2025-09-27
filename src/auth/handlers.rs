@@ -16,7 +16,7 @@ use crate::{
         db,
         models::{Permission, PermissionCtx},
     },
-    server::{app_state::AppState, server_error::ServerError},
+    server::{app_state::AppState, error::ServerError},
 };
 
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {
@@ -47,7 +47,7 @@ pub async fn get_user_from_subject(
     let option = match subject {
         SubjectId::Guest(id) => db::get_user_by_guest_id(state.get_pool(), id).await?,
         SubjectId::Registered(id) => db::get_user_by_auth0_id(state.get_pool(), id).await?,
-        SubjectId::Auth0 => {
+        SubjectId::Integration(_) => {
             return Err(ServerError::AccessDenied);
         }
     };
@@ -111,7 +111,7 @@ pub async fn patch_user_activity(
     Extension(_permission_ctx): Extension<PermissionCtx>,
     Path(user_id): Path<i32>,
 ) -> Result<(), ServerError> {
-    if let SubjectId::Auth0 = subject {
+    if let SubjectId::Integration(_) = subject {
         return Err(ServerError::AccessDenied);
     };
 
@@ -124,7 +124,7 @@ pub async fn auth0_trigger_endpoint(
     Extension(subject): Extension<SubjectId>,
     Json(auth0_user): Json<Auth0User>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Auth0 = subject else {
+    let SubjectId::Integration(_) = subject else {
         return Err(ServerError::AccessDenied);
     };
 

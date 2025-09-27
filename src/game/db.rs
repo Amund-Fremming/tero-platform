@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::{
     game::models::{GameBase, GameType, PagedRequest, PagedResponse},
-    server::server_error::ServerError,
+    server::error::ServerError,
 };
 
 pub async fn get_game_page(

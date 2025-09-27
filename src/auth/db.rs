@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     auth::models::{Auth0User, PutUserRequest, User, UserType},
-    server::server_error::ServerError,
+    server::error::ServerError,
 };
 
 pub async fn get_user_id_by_auth0_id(

@@ -4,7 +4,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::game::models::Gender;
+use crate::{game::models::Gender, integration::models::IntegrationName};
 
 #[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, Clone)]
 pub enum Permission {
@@ -12,8 +12,8 @@ pub enum Permission {
     ReadAdmin,
     #[serde(rename(deserialize = "write:admin"))]
     WriteAdmin,
-    #[serde(rename(deserialize = "save:games"))]
-    SaveGames,
+    #[serde(rename(deserialize = "write:game"))]
+    WriteGame,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -53,7 +53,7 @@ pub struct Claims {
 pub enum SubjectId {
     Guest(Uuid),
     Registered(String),
-    Auth0,
+    Integration(IntegrationName),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -2,7 +2,7 @@ use sqlx::{Pool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    server::server_error::ServerError,
+    server::error::ServerError,
     spin::models::{Round, SpinGame, SpinSession},
 };
 
@@ -42,7 +42,7 @@ pub async fn get_spin_session_by_game_id(
     Ok(session)
 }
 
-pub async fn tx_persist_spinsession(
+pub async fn tx_persist_spin_session(
     tx: &mut Transaction<'_, Postgres>,
     session: &SpinSession,
 ) -> Result<(), ServerError> {

@@ -14,9 +14,10 @@ use uuid::Uuid;
 use crate::{
     auth::models::{Claims, PermissionCtx, SubjectId},
     config::config::CONFIG,
+    integration::models::IntegrationName,
     server::{
         app_state::{AppState, Jwks},
-        server_error::ServerError,
+        error::ServerError,
     },
 };
 
@@ -57,7 +58,7 @@ pub async fn auth_mw(
             return Err(ServerError::Api(StatusCode::UNAUTHORIZED, "".into()));
         }
 
-        let subject = SubjectId::Auth0;
+        let subject = SubjectId::Integration(IntegrationName::Auth0);
         info!("Request by subject: {:?}", subject);
         req.extensions_mut().insert(subject);
     }
@@ -70,6 +71,8 @@ async fn get_subject_and_permissions(
     jwks: &Jwks,
 ) -> Result<(SubjectId, PermissionCtx), ServerError> {
     if let Some(token) = header_value.strip_prefix("Bearer ") {
+        debug!("Recieved token: {}", token);
+
         let token_data = verify_jwt(token, jwks).await?;
         let claims: Claims = serde_json::from_value(token_data.claims)?;
 

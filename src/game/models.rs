@@ -73,7 +73,7 @@ pub struct PagedRequest {
     pub page_num: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct GameBase {
     pub id: Uuid,
     pub name: String,
@@ -83,7 +83,7 @@ pub struct GameBase {
     pub times_played: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PagedResponse {
     games: Vec<GameBase>,
     has_next: bool,

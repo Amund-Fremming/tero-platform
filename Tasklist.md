@@ -1,11 +1,8 @@
 # Tasklist
 
-## Quick notes for frontend
-
-- read before spin blir random, mindre for bruker å velge
-
 ## Quick notes
 
+- read before spin blir random, mindre for bruker å velge
 - Persist gamesession needs to be protected. Make singalR hub a integration, validate M2M Token
 
 ## Tasklist
@@ -23,7 +20,8 @@
 - [x] Better config management
 
 **State**
-- [x] Implement state with pg pool
+- [x] pg pool
+- [x] page cache
 
 **Error**
 - [x] Implement descriptive error handling with internal logging not visible to the outside
@@ -48,7 +46,7 @@
 - [x] Maybe update endpoints to require user id for fetching users, targeting query on id, not auth0_id or guest_id. this also makes it possible for admins to query users 
 - [ ] Expand refresh token / jwt to be longer than an hour
 - [ ] Update user sync from backend to auth0 (daily job/trigger)
-- [ ] Sync on registered user creation, needs to deactivate/delete the guest user
+- [ ] Cron job for deleting guest users after a time, then make the frontend users need to create new. This is to prevent having to link users to guest users
 - [ ] Sync for when a user gets admin permissions, needs to update user type
 
 **M2M GameSession**
@@ -93,13 +91,18 @@
 - [x] Setup index and tables
 - [x] Setup db handlers
 - [x] Implement core
-- [ ] strategy for removing no longer used slugs
+- [x] strategy for removing no longer used slugs
 
 **Admin**
 - [ ] acrive games?
 - [ ] Endponints for user history, how many active last week, last month and today
 - [ ] Endpoints for fetching logs based on time or ceverity
 - [ ] Possibility to view config like redirect (for debugging)
+
+**Store games**
+- [ ] Model relations table for a registered user to persist games they have played
+- [ ] Endpoint for persisting a game
+- [ ] Endpoint for listing a game
 
 **Audit**
 - [ ] Enums for action and ceverity
@@ -111,6 +114,11 @@
 - [ ] Make it a static table / json file loaded from startup
 - [ ] Use a bitmap for storing consents on the user profile rather than a own table for lookups (No need for realations and joins)
 - [ ] Push notifications/alterts/mail?/sms?
+
+**Notifications**
+- [ ] Model a solution for storing alerts
+- [ ] Remove notifications after some time to store data storage
+- [ ] endpoint for admins to create alerts
 
 **Cleanup/refactor**
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)

@@ -6,7 +6,7 @@ use serde_json::json;
 
 use crate::{
     health::db,
-    server::{app_state::AppState, server_error::ServerError},
+    server::{app_state::AppState, error::ServerError},
 };
 
 pub fn health_routes(state: Arc<AppState>) -> Router {

@@ -1,23 +1,13 @@
 use std::{collections::HashSet, sync::Arc};
 
 use rand::seq::IndexedRandom;
-use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use tokio::sync::RwLock;
 
-use crate::{key_vault::db, server::server_error::ServerError};
-
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct JoinKey {
-    pub id: String,
-    pub word: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct KeyPair {
-    pub id: String,
-    pub key: String,
-}
+use crate::{
+    key_vault::{db, models::KeyPair},
+    server::error::ServerError,
+};
 
 pub struct KeyVault {
     pub in_use: Arc<RwLock<HashSet<String>>>,

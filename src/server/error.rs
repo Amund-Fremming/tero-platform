@@ -41,9 +41,6 @@ pub enum ServerError {
 
     #[error("Out of sync error: {0}")]
     OutOfSync(String),
-
-    #[error("Poison error")]
-    PoisonError,
 }
 
 impl IntoResponse for ServerError {
@@ -104,10 +101,6 @@ impl IntoResponse for ServerError {
             }
             ServerError::OutOfSync(e) => {
                 error!("Out of sync error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, String::new())
-            }
-            ServerError::PoisonError => {
-                error!("Poison error");
                 (StatusCode::INTERNAL_SERVER_ERROR, String::new())
             }
         }

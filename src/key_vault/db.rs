@@ -1,6 +1,6 @@
 use sqlx::{Pool, Postgres};
 
-use crate::{key_vault::key_vault::JoinKey, server::server_error::ServerError};
+use crate::{key_vault::models::JoinKey, server::error::ServerError};
 
 pub async fn get_word_set(pool: &Pool<Postgres>, keys: &[&str; 2]) -> Result<String, ServerError> {
     let keys = sqlx::query_as::<_, JoinKey>(

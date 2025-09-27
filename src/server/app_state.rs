@@ -7,8 +7,7 @@ use sqlx::{Pool, Postgres};
 
 use crate::{
     client::gamesession_client::GameSessionClient, config::config::CONFIG,
-    key_vault::key_vault::KeyVault, quiz::models::QuizGame, server::server_error::ServerError,
-    spin::models::SpinGame,
+    game::models::PagedResponse, server::error::ServerError,
 };
 
 pub struct AppState {
@@ -16,9 +15,7 @@ pub struct AppState {
     jwks: Jwks,
     client: Client,
     gs_client: GameSessionClient,
-    key_vault: KeyVault,
-    quiz_cache: GustCache<Vec<QuizGame>>,
-    spin_cache: GustCache<Vec<SpinGame>>,
+    page_cache: GustCache<Vec<PagedResponse>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -47,19 +44,14 @@ impl AppState {
         let jwks_url = format!("{}.well-known/jwks.json", CONFIG.auth0.domain);
         let response = client.get(jwks_url).send().await?;
         let jwks = response.json::<Jwks>().await?;
-
-        let key_vault = KeyVault::new();
-        let quiz_cache = GustCache::from_ttl(chrono::Duration::minutes(2));
-        let spin_cache = GustCache::from_ttl(chrono::Duration::minutes(2));
+        let page_cache = GustCache::from_ttl(chrono::Duration::minutes(2));
 
         let state = Arc::new(Self {
             pool,
             jwks,
             client,
             gs_client,
-            key_vault,
-            quiz_cache,
-            spin_cache,
+            page_cache,
         });
 
         Ok(state)
@@ -73,16 +65,8 @@ impl AppState {
         &self.jwks
     }
 
-    pub fn get_key_vault(&self) -> &KeyVault {
-        &self.key_vault
-    }
-
-    pub fn get_quiz_cache(&self) -> &GustCache<Vec<QuizGame>> {
-        &self.quiz_cache
-    }
-
-    pub fn get_spin_cache(&self) -> &GustCache<Vec<SpinGame>> {
-        &self.spin_cache
+    pub fn get_spin_cache(&self) -> &GustCache<Vec<PagedResponse>> {
+        &self.page_cache
     }
 
     pub fn get_client(&self) -> &Client {

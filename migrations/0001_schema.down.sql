@@ -17,11 +17,12 @@ DROP INDEX IF EXISTS "idx_spin_game_category";
 DROP INDEX IF EXISTS "idx_spin_game_round_id";
 
 -- Drop tables
+DROP TABLE IF EXISTS "integration";
+DROP TABLE IF EXISTS "join_key";
 DROP TABLE IF EXISTS "user";
 DROP TABLE IF EXISTS "quiz_game";
 DROP TABLE IF EXISTS "spin_game";
 DROP TABLE IF EXISTS "spin_game_round";
-DROP TABLE IF EXISTS "game_name";
 
 -- Drop types
 DROP TYPE IF EXISTS "user_type";
