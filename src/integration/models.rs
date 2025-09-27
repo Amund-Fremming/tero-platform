@@ -6,17 +6,21 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-static INTEGRATIONS: Lazy<Mutex<HashMap<String, IntegrationName>>> =
+pub static INTEGRATION_NAMES: Lazy<Mutex<HashMap<String, IntegrationName>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+pub static INTEGRATION_IDS: Lazy<Mutex<HashMap<IntegrationName, Uuid>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Integration {
     pub id: Uuid,
     pub subject: String,
-    pub name: String,
+    pub name: IntegrationName,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::Type)]
+#[sqlx(type_name = "integration_name", rename_all = "lowercase")]
 pub enum IntegrationName {
     Auth0,
     Session,

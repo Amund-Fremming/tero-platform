@@ -1,6 +1,31 @@
 -- Add migration script here
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+CREATE TYPE "integration_name" AS ENUM (
+    'auth0',
+    'session'
+);
+
+CREATE TYPE "log_ceverity" AS ENUM (
+    'critical',
+    'warning',
+    'info'
+);
+
+CREATE TYPE "log_action" AS ENUM (
+    'create',
+    'read',
+    'update',
+    'delete'
+);
+
+CREATE TYPE "subject_type" AS ENUM (
+    'registered_user',
+    'guest_user',
+    'integration',
+    'system'
+);
+
 CREATE TYPE user_type AS ENUM (
     'guest',
     'registered'
@@ -18,6 +43,17 @@ CREATE TYPE gender AS ENUM (
     'f',
     'u'   
 )
+
+CREATE TABLE "system_log" (
+    "id" BIGSERIAL PRIMARY KEY,
+    "subject_id" VARCHAR(100) NOT NULL,
+    "subject_type" subject_type NOT NULL,
+    "action" log_action NOT NULL,
+    "ceverity" log_ceverity NOT NULL,
+    "file_name" VARCHAR(50) NOT NULL,
+    "description" VARCHAR(512) NOT NULL,
+    "metadata" JSONB
+);
 
 CREATE TABLE "join_key" (
     "id" PRIMARY KEY VARCHAR(7),
@@ -75,7 +111,10 @@ ALTER TABLE "spin_game_round" ADD CONSTRAINT "spin_game_round_fk" FOREIGN KEY ("
 
 CREATE INDEX "idx_join_key_id" ON "join_key" ("id");
 
+CREATE INDEX "idx_system_log_ceverity" ON "system_log" ("ceverity");;
+
 CREATE INDEX "idx_user_id" ON "user" ("id");
+CREATE INDEX "idx_user_last_active" ON "user" ("last_active");
 CREATE INDEX "idx_auth0_id" ON "user" ("guest_id");
 
 CREATE INDEX "idx_quiz_game_id" ON "quiz_game" ("id");

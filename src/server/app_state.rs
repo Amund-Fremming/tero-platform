@@ -7,7 +7,7 @@ use sqlx::{Pool, Postgres};
 
 use crate::{
     client::gamesession_client::GameSessionClient, config::config::CONFIG,
-    game::models::PagedResponse, server::error::ServerError,
+    game::models::PagedResponse, server::error::ServerError, system_log::builder::SystemLogBuilder,
 };
 
 pub struct AppState {
@@ -65,15 +65,15 @@ impl AppState {
         &self.jwks
     }
 
-    pub fn get_spin_cache(&self) -> &GustCache<Vec<PagedResponse>> {
-        &self.page_cache
-    }
-
     pub fn get_client(&self) -> &Client {
         &self.client
     }
 
     pub fn get_session_client(&self) -> &GameSessionClient {
         &self.gs_client
+    }
+
+    pub fn audit(&self) -> SystemLogBuilder {
+        SystemLogBuilder::new(self.get_pool())
     }
 }

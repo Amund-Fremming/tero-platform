@@ -18,6 +18,7 @@
 - [x] Centrallized config management
 - [x] Setup runtimes with .env files GITIGNORE
 - [x] Better config management
+- [ ] Run migrations on startup
 
 **State**
 - [x] pg pool
@@ -105,9 +106,10 @@
 - [ ] Endpoint for listing a game
 
 **Audit**
-- [ ] Enums for action and ceverity
-- [ ] Implement and SQL migration
-- [ ] Add audit logs where neccesarry
+- [x] Enums for action and ceverity
+- [x] Implement and SQL migration
+- [ ] Import integrations on startup to INTEGRAITON_IDS and INTEGRATION_NAMES
+- [x] Add audit logs where neccesarry
 - [ ] Protected api for game session to write logs
 
 **Consents**
@@ -122,19 +124,3 @@
 
 **Cleanup/refactor**
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)
-
----
-
-## Models not implemented
-
-- audit
-    - severity
-    - action
-    - trace ?
-
-- saved_games 
-    - id (PK)
-    - user_id (FK)
-    - game_id (FK)
-    - game_type (enum: spinner, quiz, ...)
-    - saved

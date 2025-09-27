@@ -32,8 +32,8 @@ use crate::{
     },
 };
 
-pub fn games_routes(state: Arc<AppState>) -> Router {
-    let a = Router::new()
+pub fn game_routes(state: Arc<AppState>) -> Router {
+    let game_routes = Router::new()
         .route("/{game_type}/page", post(get_game_page))
         .route("/{game_type}/create", post(create_game_session))
         .route("/{game_type}/join/{game_id}", post(join_game_session))
@@ -48,7 +48,9 @@ pub fn games_routes(state: Arc<AppState>) -> Router {
         .route("/persist", post(persist_game_session))
         .with_state(state.clone());
 
-    Router::new().nest("/a", a).nest("/session", session_routes)
+    Router::new()
+        .nest("/", game_routes)
+        .nest("/session", session_routes)
 }
 
 /* Game handlers */
