@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{clone, collections::HashSet};
 
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
@@ -16,27 +16,6 @@ pub enum Permission {
     WriteGame,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PermissionCtx {
-    permissions: HashSet<Permission>,
-}
-
-impl PermissionCtx {
-    pub fn none() -> Self {
-        Self {
-            permissions: HashSet::new(),
-        }
-    }
-
-    pub fn new(permissions: HashSet<Permission>) -> Self {
-        Self { permissions }
-    }
-
-    pub fn has(&self, required_perm: Permission) -> bool {
-        self.permissions.contains(&required_perm)
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     aud: Vec<String>,
@@ -47,6 +26,24 @@ pub struct Claims {
     pub scope: String,
     pub sub: String,
     pub permissions: HashSet<Permission>,
+}
+
+impl Claims {
+    pub fn missing_permission<I>(&self, required: I) -> Option<HashSet<Permission>>
+    where
+        I: IntoIterator<Item = Permission>,
+    {
+        let required_iter = required.into_iter();
+        let permissions = match self.permissions.is_empty() {
+            true => return Some(required_iter.collect()),
+            false => self.permissions.clone(),
+        };
+
+        let missing: HashSet<Permission> =
+            required_iter.filter(|p| !permissions.contains(p)).collect();
+
+        (!missing.is_empty()).then_some(missing)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

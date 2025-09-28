@@ -11,10 +11,9 @@ use sqlx::{Pool, Postgres};
 use tracing::info;
 
 use crate::{
-    auth::models::{Auth0User, PutUserRequest, SubjectId},
     auth::{
-        db,
-        models::{Permission, PermissionCtx},
+        db::{self, get_user_id_by_auth0_id},
+        models::{Auth0User, Claims, Permission, PutUserRequest, SubjectId},
     },
     server::{app_state::AppState, error::ServerError},
 };
@@ -42,7 +41,7 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
 pub async fn get_user_from_subject(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
-    Extension(_permissions): Extension<PermissionCtx>,
+    Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
     let option = match subject {
         SubjectId::Guest(id) => db::get_user_by_guest_id(state.get_pool(), id).await?,
@@ -66,7 +65,7 @@ pub async fn create_guest_user(
 pub async fn patch_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
-    Extension(permission_ctx): Extension<PermissionCtx>,
+    Extension(claims): Extension<Claims>,
     Path(user_id): Path<i32>,
     Json(put_request): Json<PutUserRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
@@ -74,49 +73,50 @@ pub async fn patch_user(
         return Err(ServerError::AccessDenied);
     };
 
-    if permission_ctx.has(Permission::WriteAdmin) {
+    if let None = claims.missing_permission([Permission::WriteAdmin]) {
         db::patch_user_by_id(state.get_pool(), user_id, put_request).await?;
-        return Ok(StatusCode::NO_CONTENT);
+        return Ok(StatusCode::OK);
     }
 
     ensure_user_owns_data(state.get_pool(), user_id, auth0_id).await?;
     db::patch_user_by_id(state.get_pool(), user_id, put_request).await?;
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(StatusCode::OK)
 }
 
 pub async fn delete_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
-    Extension(permission_ctx): Extension<PermissionCtx>,
+    Extension(claims): Extension<Claims>,
     Path(user_id): Path<i32>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Registered(auth0_id) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
-    if permission_ctx.has(Permission::WriteAdmin) {
+    if let None = claims.missing_permission([Permission::WriteAdmin]) {
         db::delete_user_by_id(state.get_pool(), user_id).await?;
+        return Ok(StatusCode::OK);
     }
 
     ensure_user_owns_data(state.get_pool(), user_id, auth0_id).await?;
     db::delete_user_by_id(state.get_pool(), user_id).await?;
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(StatusCode::OK)
 }
 
 pub async fn patch_user_activity(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<SubjectId>,
-    Extension(_permission_ctx): Extension<PermissionCtx>,
-    Path(user_id): Path<i32>,
-) -> Result<(), ServerError> {
-    if let SubjectId::Integration(_) = subject {
-        return Err(ServerError::AccessDenied);
+    Extension(subject_id): Extension<SubjectId>,
+    Extension(_claims): Extension<Claims>,
+) -> Result<impl IntoResponse, ServerError> {
+    let user_id = match subject_id {
+        SubjectId::Registered(id) | SubjectId::Guest(id) => id,
+        SubjectId::Integration(_) => return Err(ServerError::AccessDenied),
     };
 
     db::update_user_activity(state.get_pool(), user_id).await?;
-    Ok(())
+    Ok(StatusCode::OK)
 }
 
 pub async fn auth0_trigger_endpoint(
@@ -137,7 +137,7 @@ pub async fn auth0_trigger_endpoint(
 pub async fn list_all_users(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
-    Extension(permission_ctx): Extension<PermissionCtx>,
+    Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Registered(_) = subject else {
         return Err(ServerError::Api(
@@ -146,8 +146,8 @@ pub async fn list_all_users(
         ));
     };
 
-    if permission_ctx.has(Permission::ReadAdmin) {
-        return Err(ServerError::Permission(Permission::ReadAdmin));
+    if let Some(missing) = claims.missing_permission([Permission::ReadAdmin]) {
+        return Err(ServerError::Permission(missing));
     }
 
     let users = db::list_all_users(state.get_pool()).await?;

@@ -14,7 +14,7 @@ use tracing::error;
 use crate::{
     auth::{
         db::get_user_id_by_auth0_id,
-        models::{Permission, PermissionCtx, SubjectId},
+        models::{Claims, Permission, SubjectId},
     },
     game::{
         db::{self, increment_times_played},
@@ -34,6 +34,7 @@ use crate::{
 
 pub fn game_routes(state: Arc<AppState>) -> Router {
     let game_routes = Router::new()
+        .route("/{game_type}", post(delete_game))
         .route("/{game_type}/page", post(get_game_page))
         .route("/{game_type}/create", post(create_game_session))
         .route("/{game_type}/join/{game_id}", post(join_game_session))
@@ -54,6 +55,27 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
 }
 
 /* Game handlers */
+
+async fn delete_game(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Extension(claims): Extension<Claims>,
+    Path(game_type): Path<GameType>,
+    Path(game_id): Path<Uuid>,
+) -> Result<impl IntoResponse, ServerError> {
+    if let SubjectId::Integration(int_name) = subject_id {
+        error!("Integration {} tried accessing admin endpoint", int_name);
+        return Err(ServerError::AccessDenied);
+    }
+
+    // TODO
+
+    if let Some(missing) = claims.missing_permission([Permission::WriteAdmin]) {
+        return Err(ServerError::Permission(missing));
+    }
+
+    Ok(StatusCode::OK)
+}
 
 async fn join_game_session(
     State(state): State<Arc<AppState>>,
@@ -171,7 +193,7 @@ async fn persist_game_session(
 async fn free_game_key(
     State(_state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Extension(permission_ctx): Extension<PermissionCtx>,
+    Extension(claims): Extension<Claims>,
     Path(game_type): Path<GameType>,
     Json(key_pair): Json<KeyPair>,
 ) -> Result<impl IntoResponse, ServerError> {
@@ -183,8 +205,8 @@ async fn free_game_key(
         return Err(ServerError::AccessDenied);
     };
 
-    if permission_ctx.has(Permission::WriteGame) {
-        return Err(ServerError::Permission(Permission::WriteGame));
+    if let Some(missing) = claims.missing_permission([Permission::WriteGame]) {
+        return Err(ServerError::Permission(missing));
     }
 
     KEY_VAULT.remove_key(&key_pair.id).await;

@@ -19,7 +19,7 @@ pub struct Integration {
     pub name: IntegrationName,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "integration_name", rename_all = "lowercase")]
 pub enum IntegrationName {
     Auth0,

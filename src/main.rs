@@ -5,6 +5,7 @@ use axum::{
     middleware::{from_fn, from_fn_with_state},
 };
 use dotenv::dotenv;
+use sqlx::{Pool, Postgres, pool};
 use tokio::sync::Mutex;
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::FmtSubscriber;
@@ -20,7 +21,7 @@ use crate::{
         models::{INTEGRATION_IDS, INTEGRATION_NAMES, IntegrationName},
     },
     mw::{auth_mw::auth_mw, request_mw::request_mw},
-    server::app_state::AppState,
+    server::{app_state::AppState, error::ServerError},
     system_log::handlers::log_routes,
 };
 
@@ -54,16 +55,9 @@ async fn main() {
         .unwrap_or_else(|e| panic!("{}", e));
 
     // Initiate integrations
-    let integrations = db::list_integrations(state.get_pool())
+    load_integrations(state.get_pool())
         .await
-        .expect("Failed to fetch integrations");
-
-    let integration_names: HashMap<String, IntegrationName> =
-        integrations.iter().map(|i| (i.subject, i.name)).collect();
-    let integration_ids: HashMap<IntegrationName, Uuid> =
-        integrations.iter().map(|i| (i.name, i.id)).collect();
-    *INTEGRATION_IDS = Mutex::new(integration_ids);
-    *INTEGRATION_NAMES = Mutex::new(integration_names);
+        .expect("Failed to load integrations");
 
     // Run migrations
     if let Err(e) = sqlx::migrate!().run(state.get_pool()).await {
@@ -98,4 +92,29 @@ async fn main() {
         listener.local_addr().unwrap()
     );
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn load_integrations(pool: &Pool<Postgres>) -> Result<(), ServerError> {
+    let integrations = db::list_integrations(pool).await?;
+
+    let integration_names: HashMap<String, IntegrationName> = integrations
+        .iter()
+        .map(|i| (i.subject.clone(), i.name.clone()))
+        .collect();
+    let integration_ids: HashMap<IntegrationName, Uuid> = integrations
+        .iter()
+        .map(|i| (i.name.clone(), i.id))
+        .collect();
+
+    {
+        let mut lock = INTEGRATION_IDS.lock().await;
+        *lock = integration_ids;
+    }
+
+    {
+        let mut lock = INTEGRATION_NAMES.lock().await;
+        *lock = integration_names;
+    }
+
+    Ok(())
 }

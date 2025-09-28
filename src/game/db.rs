@@ -61,3 +61,25 @@ pub async fn increment_times_played(
 
     Ok(())
 }
+
+pub async fn delete_game(
+    pool: &Pool<Postgres>,
+    game_type: &GameType,
+    id: &Uuid,
+) -> Result<(), ServerError> {
+    let query = format!(
+        r#"
+        DELETE FROM {}
+        WHERE id = $1
+        "#,
+        game_type.to_string()
+    );
+
+    let row = sqlx::query(&query).bind(id).execute(pool).await?;
+
+    if row.rows_affected() == 0 {
+        return Err(ServerError::Internal("Failed to delete game".into()));
+    }
+
+    Ok(())
+}

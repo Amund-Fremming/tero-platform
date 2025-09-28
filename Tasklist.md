@@ -18,7 +18,7 @@
 - [x] Centrallized config management
 - [x] Setup runtimes with .env files GITIGNORE
 - [x] Better config management
-- [ ] Run migrations on startup
+- [x] Run migrations on startup
 
 **State**
 - [x] pg pool
@@ -81,7 +81,6 @@
 - [x] Api for storing games to database from c#
 - [x] Api for creation of game, send to c# and client
 - [x] Api for game session creation, send to c# and client
-- [ ] Fully tested
 
 **UniversalService**
 - [x] Pagination support
@@ -95,7 +94,7 @@
 - [x] strategy for removing no longer used slugs
 
 **Admin**
-- [ ] acrive games?
+- [ ] Delete games
 - [ ] Endponints for user history, how many active last week, last month and today
 - [ ] Endpoints for fetching logs based on time or ceverity
 - [ ] Possibility to view config like redirect (for debugging)
@@ -108,9 +107,8 @@
 **Audit**
 - [x] Enums for action and ceverity
 - [x] Implement and SQL migration
-- [ ] Import integrations on startup to INTEGRAITON_IDS and INTEGRATION_NAMES
+- [x] Import integrations on startup to INTEGRAITON_IDS and INTEGRATION_NAMES
 - [x] Add audit logs where neccesarry
-- [ ] Protected api for game session to write logs
 
 **Consents**
 - [ ] Make it a static table / json file loaded from startup

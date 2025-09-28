@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use axum::{http::StatusCode, response::IntoResponse};
 use thiserror::Error;
 use tracing::error;
@@ -16,7 +18,7 @@ pub enum ServerError {
     Api(StatusCode, String),
 
     #[error("Permission error")]
-    Permission(Permission),
+    Permission(HashSet<Permission>),
 
     #[error("Access denied error")]
     AccessDenied,
