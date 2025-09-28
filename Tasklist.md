@@ -4,6 +4,7 @@
 
 - read before spin blir random, mindre for bruker å velge
 - Persist gamesession needs to be protected. Make singalR hub a integration, validate M2M Token
+- add write system log permission
 
 ## Tasklist
 

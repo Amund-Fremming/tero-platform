@@ -1,4 +1,4 @@
-use std::{clone, collections::HashSet};
+use std::collections::HashSet;
 
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
@@ -14,9 +14,11 @@ pub enum Permission {
     WriteAdmin,
     #[serde(rename(deserialize = "write:game"))]
     WriteGame,
+    #[serde(rename(deserialize = "write:system_log"))]
+    WriteSystemLog,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
     aud: Vec<String>,
     azp: String,
@@ -29,6 +31,19 @@ pub struct Claims {
 }
 
 impl Claims {
+    pub fn empty() -> Self {
+        Self {
+            aud: vec![],
+            azp: String::new(),
+            exp: 0,
+            iat: 0,
+            iss: String::new(),
+            scope: String::new(),
+            sub: String::from("guest"),
+            permissions: HashSet::new(),
+        }
+    }
+
     pub fn missing_permission<I>(&self, required: I) -> Option<HashSet<Permission>>
     where
         I: IntoIterator<Item = Permission>,

@@ -12,7 +12,7 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
-    auth::models::{Claims, PermissionCtx, SubjectId},
+    auth::models::{Claims, SubjectId},
     config::config::CONFIG,
     integration::models::IntegrationName,
     server::{
@@ -69,24 +69,22 @@ pub async fn auth_mw(
 async fn get_subject_and_permissions(
     header_value: String,
     jwks: &Jwks,
-) -> Result<(SubjectId, PermissionCtx), ServerError> {
+) -> Result<(SubjectId, Claims), ServerError> {
     if let Some(token) = header_value.strip_prefix("Bearer ") {
         debug!("Recieved token: {}", token);
 
         let token_data = verify_jwt(token, jwks).await?;
         let claims: Claims = serde_json::from_value(token_data.claims)?;
+        let subject = SubjectId::Registered(claims.sub.clone());
 
-        let subject = SubjectId::Registered(claims.sub);
-        let permissions = PermissionCtx::new(claims.permissions);
-
-        return Ok((subject, permissions));
+        return Ok((subject, claims));
     }
 
     if let Some(value) = header_value.strip_prefix("Guest ") {
         let id: Uuid = value.parse().map_err(|_| {
             ServerError::Api(StatusCode::BAD_REQUEST, "Failed to parse header".into())
         })?;
-        return Ok((SubjectId::Guest(id), PermissionCtx::none()));
+        return Ok((SubjectId::Guest(id), Claims::empty()));
     }
 
     Err(ServerError::Api(
