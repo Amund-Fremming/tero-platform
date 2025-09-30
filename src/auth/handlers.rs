@@ -8,11 +8,11 @@ use axum::{
     routing::{get, patch, post, put},
 };
 use sqlx::{Pool, Postgres};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     auth::{
-        db::{self, get_user_id_by_auth0_id},
+        db::{self},
         models::{Auth0User, Claims, Permission, PutUserRequest, SubjectId},
     },
     server::{app_state::AppState, error::ServerError},
@@ -38,7 +38,7 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
         .with_state(state)
 }
 
-pub async fn get_user_from_subject(
+async fn get_user_from_subject(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
     Extension(_claims): Extension<Claims>,
@@ -55,14 +55,14 @@ pub async fn get_user_from_subject(
     Ok((StatusCode::OK, Json(user)))
 }
 
-pub async fn create_guest_user(
+async fn create_guest_user(
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, ServerError> {
     let guest_id = db::create_guest_user(state.get_pool()).await?;
     Ok((StatusCode::CREATED, Json(guest_id)))
 }
 
-pub async fn patch_user(
+async fn patch_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
@@ -84,7 +84,7 @@ pub async fn patch_user(
     Ok(StatusCode::OK)
 }
 
-pub async fn delete_user(
+async fn delete_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
@@ -105,20 +105,21 @@ pub async fn delete_user(
     Ok(StatusCode::OK)
 }
 
-pub async fn patch_user_activity(
+async fn patch_user_activity(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let user_id = match subject_id {
-        SubjectId::Registered(id) | SubjectId::Guest(id) => id,
-        SubjectId::Integration(_) => return Err(ServerError::AccessDenied),
+    let SubjectId::Registered(auth0_id) = subject_id else {
+        error!("Non authorized client tried to access endpoint");
+        return Err(ServerError::AccessDenied);
     };
 
     db::update_user_activity(state.get_pool(), user_id).await?;
     Ok(StatusCode::OK)
 }
 
+// TODO - delete
 pub async fn auth0_trigger_endpoint(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
@@ -140,10 +141,7 @@ pub async fn list_all_users(
     Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Registered(_) = subject else {
-        return Err(ServerError::Api(
-            StatusCode::FORBIDDEN,
-            "Not allowed".into(),
-        ));
+        return Err(ServerError::AccessDenied);
     };
 
     if let Some(missing) = claims.missing_permission([Permission::ReadAdmin]) {

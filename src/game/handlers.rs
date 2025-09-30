@@ -64,7 +64,6 @@ async fn delete_game(
     Path(game_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
     if let SubjectId::Integration(int_name) = subject_id {
-        error!("Integration {} tried accessing admin endpoint", int_name);
         return Err(ServerError::AccessDenied);
     }
 

@@ -57,13 +57,13 @@ impl SystemLogBuilder {
         self
     }
 
-    pub fn file_name(mut self, file_name: String) -> Self {
-        self.file_name = Some(file_name);
+    pub fn file_name(mut self, file_name: &str) -> Self {
+        self.file_name = Some(file_name.into());
         self
     }
 
-    pub fn description(mut self, description: String) -> Self {
-        self.description = Some(description);
+    pub fn description(mut self, description: &str) -> Self {
+        self.description = Some(description.into());
         self
     }
 
