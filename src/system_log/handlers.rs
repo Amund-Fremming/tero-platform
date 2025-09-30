@@ -48,7 +48,7 @@ async fn create_system_log(
     }
 
     if let Some(description) = request.description {
-        builder = builder.description(description);
+        builder = builder.description(&description);
     }
 
     if let Some(metadata) = request.metadata {

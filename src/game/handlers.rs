@@ -13,7 +13,7 @@ use tracing::error;
 
 use crate::{
     auth::{
-        db::get_user_id_by_auth0_id,
+        db::get_user_id_from_auth0_id,
         models::{Claims, Permission, SubjectId},
     },
     game::{
@@ -84,7 +84,7 @@ async fn join_game_session(
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject_id {
         SubjectId::Guest(uid) => uid,
-        SubjectId::Registered(aid) => get_user_id_by_auth0_id(state.get_pool(), &aid).await?,
+        SubjectId::Registered(aid) => get_user_id_from_auth0_id(state.get_pool(), &aid).await?,
         _ => return Err(ServerError::AccessDenied),
     };
 
@@ -117,7 +117,7 @@ async fn initiate_game_session(
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject {
         SubjectId::Guest(id) => id,
-        SubjectId::Registered(id) => get_user_id_by_auth0_id(state.get_pool(), &id).await?,
+        SubjectId::Registered(id) => get_user_id_from_auth0_id(state.get_pool(), &id).await?,
         _ => return Err(ServerError::AccessDenied),
     };
 

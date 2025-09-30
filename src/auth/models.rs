@@ -64,7 +64,7 @@ impl Claims {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SubjectId {
     Guest(Uuid),
-    Registered(String),
+    Registered(Uuid),
     Integration(IntegrationName),
 }
 

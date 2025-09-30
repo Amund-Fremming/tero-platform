@@ -7,7 +7,23 @@ use crate::{
     server::error::ServerError,
 };
 
-pub async fn get_user_id_by_auth0_id(
+pub async fn get_user_id_from_guest_id(
+    pool: &Pool<Postgres>,
+    guest_id: &Uuid,
+) -> Result<Option<Uuid>, sqlx::Error> {
+    sqlx::query_scalar(
+        r#"
+        SELECT user_id
+        FROM "user"
+        WHERE guest_id = &1
+        "#,
+    )
+    .bind(guest_id)
+    .fetch_optional(pool)
+    .await
+}
+
+pub async fn get_user_id_from_auth0_id(
     pool: &Pool<Postgres>,
     auth0_id: &str,
 ) -> Result<Uuid, ServerError> {
@@ -33,7 +49,7 @@ pub async fn get_user_id_by_auth0_id(
 
 pub async fn get_user_by_id(
     pool: &Pool<Postgres>,
-    user_id: i32,
+    user_id: &Uuid,
 ) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(r#"SELECT * FROM "user" WHERE id = $1"#)
         .bind(user_id)
@@ -91,7 +107,7 @@ pub async fn create_registered_user(
     Ok(())
 }
 
-pub async fn update_user_activity(pool: &Pool<Postgres>, user_id: i32) -> Result<(), ServerError> {
+pub async fn update_user_activity(pool: &Pool<Postgres>, user_id: Uuid) -> Result<(), ServerError> {
     let row = sqlx::query(
         r#"
         UPDATE "user"

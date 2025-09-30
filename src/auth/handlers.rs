@@ -44,8 +44,8 @@ async fn get_user_from_subject(
     Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
     let option = match subject {
-        SubjectId::Guest(id) => db::get_user_by_guest_id(state.get_pool(), id).await?,
-        SubjectId::Registered(id) => db::get_user_by_auth0_id(state.get_pool(), id).await?,
+        SubjectId::Guest(id) => db::get_guest_user_by_id(state.get_pool(), id).await?,
+        SubjectId::Registered(id) => db::get_user_by_id(state.get_pool(), &user_id).await?,
         SubjectId::Integration(_) => {
             return Err(ServerError::AccessDenied);
         }
@@ -110,8 +110,7 @@ async fn patch_user_activity(
     Extension(subject_id): Extension<SubjectId>,
     Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(auth0_id) = subject_id else {
-        error!("Non authorized client tried to access endpoint");
+    let SubjectId::Registered(user_id) = subject_id else {
         return Err(ServerError::AccessDenied);
     };
 
