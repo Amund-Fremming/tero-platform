@@ -1,11 +1,23 @@
 use chrono::Utc;
 use sqlx::{Pool, Postgres, Row, query, query_as};
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
     auth::models::{Auth0User, PutUserRequest, User, UserType},
     server::error::ServerError,
 };
+
+pub async fn get_user_by_auth0_id(
+    pool: &Pool<Postgres>,
+    auth0_id: &str,
+) -> Result<User, sqlx::Error> {
+    sqlx::query(
+        r#"
+        SELECT id
+        "#,
+    )
+}
 
 pub async fn get_user_id_from_guest_id(
     pool: &Pool<Postgres>,
@@ -99,8 +111,9 @@ pub async fn create_registered_user(
     .await?;
 
     if result.rows_affected() == 0 {
-        return Err(ServerError::Internal(
-            "No rows affected when auth0 triggered creating a new user".into(),
+        error!("Failed to create registered user");
+        return Err(ServerError::NotFound(
+            "Failed to create registered user".into(),
         ));
     }
 
@@ -121,42 +134,16 @@ pub async fn update_user_activity(pool: &Pool<Postgres>, user_id: Uuid) -> Resul
     .await?;
 
     if row.rows_affected() == 0 {
-        return Err(ServerError::Internal(
-            "No rows affected when updating user activity".into(),
-        ));
+        warn!("Query failed, no user with id: {}", user_id);
+        return Err(ServerError::NotFound("User does not exist".into()));
     }
 
     Ok(())
 }
 
-pub async fn get_user_by_auth0_id(
-    pool: &Pool<Postgres>,
-    auth0_id: String,
-) -> Result<Option<User>, sqlx::Error> {
-    sqlx::query_as::<_, User>("SELECT * from user WHERE auth0_id = $1")
-        .bind(&auth0_id)
-        .fetch_optional(pool)
-        .await
-}
-
-pub async fn get_user_by_guest_id(
-    pool: &Pool<Postgres>,
-    guest_id: Uuid,
-) -> Result<Option<User>, sqlx::Error> {
-    let option = sqlx::query_as::<_, User>("SELECT * from user WHERE id = $1")
-        .bind(&guest_id)
-        .fetch_optional(pool)
-        .await?;
-
-    match option {
-        Some(u) => Ok(Some(u.strip())),
-        None => Ok(None),
-    }
-}
-
 pub async fn patch_user_by_id(
     pool: &Pool<Postgres>,
-    user_id: i32,
+    user_id: &Uuid,
     put_request: PutUserRequest,
 ) -> Result<(), ServerError> {
     let mut query: String = String::from("UPDATE user SET");
@@ -180,15 +167,14 @@ pub async fn patch_user_by_id(
     let result = sqlx::query(&query).execute(pool).await?;
 
     if result.rows_affected() == 0 {
-        return Err(ServerError::Internal(
-            "No rows affected when updating user".into(),
-        ));
+        warn!("Query failed, no user with id: {}", user_id);
+        return Err(ServerError::NotFound("User does not exist".into()));
     }
 
     Ok(())
 }
 
-pub async fn delete_user_by_id(pool: &Pool<Postgres>, user_id: i32) -> Result<(), ServerError> {
+pub async fn delete_user_by_id(pool: &Pool<Postgres>, user_id: &Uuid) -> Result<(), ServerError> {
     let result = query(
         r#"
         DELETE FROM "user" WHERE id = $1;
@@ -199,9 +185,8 @@ pub async fn delete_user_by_id(pool: &Pool<Postgres>, user_id: i32) -> Result<()
     .await?;
 
     if result.rows_affected() == 0 {
-        return Err(ServerError::Internal(
-            "No rows affected when deleting user".into(),
-        ));
+        warn!("Query failed, no game with id: {}", user_id);
+        return Err(ServerError::NotFound("User does not exist".into()));
     }
 
     Ok(())

@@ -1,4 +1,5 @@
 use sqlx::{Pool, Postgres, Transaction};
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
@@ -63,12 +64,6 @@ pub async fn tx_persist_spin_session(
     .execute(&mut **tx)
     .await?;
 
-    if game_row.rows_affected() == 0 {
-        return Err(ServerError::Internal(
-            "Failed to persist spin game session".into(),
-        ));
-    }
-
     if rounds.is_empty() {}
 
     let round_row = sqlx::query(
@@ -81,8 +76,9 @@ pub async fn tx_persist_spin_session(
     .await?;
 
     if game_row.rows_affected() == 0 || round_row.rows_affected() == 0 {
+        error!("Failed to persist spin session");
         return Err(ServerError::Internal(
-            "Failed to insert game session values for game session".into(),
+            "Failed to persist spin session".into(),
         ));
     }
 

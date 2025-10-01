@@ -1,4 +1,5 @@
 use sqlx::{Pool, Postgres};
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
@@ -52,7 +53,10 @@ pub async fn persist_quiz_session(
     .await?;
 
     if row.rows_affected() == 0 {
-        return Err(ServerError::Internal("Failed to persist quiz game".into()));
+        error!("Failed to persist quiz session");
+        return Err(ServerError::Internal(
+            "Failed to persist quiz session".into(),
+        ));
     }
 
     Ok(())

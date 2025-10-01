@@ -64,7 +64,7 @@ pub async fn auth_mw(
                 .audit()
                 .ceverity(LogCeverity::Critical)
                 .description(&error_msg)
-                .file_name("auth_mw.rs")
+                .function_name("auth_mw")
                 .log_async();
 
             return Err(ServerError::Api(
@@ -133,6 +133,9 @@ async fn handle_token_user(
 
     let auth0_id = claims.sub.clone();
     let guest_id = to_uuid(guest_header)?;
+    let user = get_user_id_from_auth0_id(state.get_pool(), &auth0_id).await?;
+    
+    if user
     /*
     TODO
     - if user has not guest_id set, but guest_id exists => async sync users

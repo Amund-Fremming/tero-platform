@@ -12,10 +12,7 @@ use uuid::Uuid;
 use tracing::error;
 
 use crate::{
-    auth::{
-        db::get_user_id_from_auth0_id,
-        models::{Claims, Permission, SubjectId},
-    },
+    auth::models::{Claims, Permission, SubjectId},
     game::{
         db::{self, increment_times_played},
         models::{CreateGameRequest, CreateSessionRequest, GameType, PagedRequest},
@@ -63,16 +60,15 @@ async fn delete_game(
     Path(game_type): Path<GameType>,
     Path(game_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
-    if let SubjectId::Integration(int_name) = subject_id {
+    if let SubjectId::Integration(_) | SubjectId::Guest(_) = subject_id {
         return Err(ServerError::AccessDenied);
     }
-
-    // TODO
 
     if let Some(missing) = claims.missing_permission([Permission::WriteAdmin]) {
         return Err(ServerError::Permission(missing));
     }
 
+    db::delete_game(state.get_pool(), &game_type, &game_id).await?;
     Ok(StatusCode::OK)
 }
 
@@ -83,8 +79,7 @@ async fn join_game_session(
     Path(game_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject_id {
-        SubjectId::Guest(uid) => uid,
-        SubjectId::Registered(aid) => get_user_id_from_auth0_id(state.get_pool(), &aid).await?,
+        SubjectId::Guest(id) | SubjectId::Registered(id) => id,
         _ => return Err(ServerError::AccessDenied),
     };
 
@@ -112,12 +107,11 @@ async fn create_game_session(
 
 async fn initiate_game_session(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<SubjectId>,
+    Extension(subject_id): Extension<SubjectId>,
     Path((game_type, game_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let user_id = match subject {
-        SubjectId::Guest(id) => id,
-        SubjectId::Registered(id) => get_user_id_from_auth0_id(state.get_pool(), &id).await?,
+    let user_id = match subject_id {
+        SubjectId::Guest(id) | SubjectId::Registered(id) => id,
         _ => return Err(ServerError::AccessDenied),
     };
 
@@ -161,11 +155,20 @@ async fn get_game_page(
 
 async fn persist_game_session(
     State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Extension(claims): Extension<Claims>,
     Json(request): Json<CreateSessionRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
-    // TODO - add m2m integration check here
-    let pool = state.get_pool();
+    let SubjectId::Integration(_) = subject_id else {
+        error!("User tried to persist game session");
+        return Err(ServerError::AccessDenied);
+    };
 
+    if let Some(missing) = claims.missing_permission([Permission::WriteGame]) {
+        return Err(ServerError::Permission(missing));
+    }
+
+    let pool = state.get_pool();
     match request.game_type {
         GameType::Spin => {
             let session: SpinSession = serde_json::from_value(request.payload)?;
@@ -193,14 +196,10 @@ async fn free_game_key(
     State(_state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
-    Path(game_type): Path<GameType>,
     Json(key_pair): Json<KeyPair>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Integration(_) = subject_id else {
-        error!(
-            "User tried accessing integration endpoint: POST /games/{}/free-key",
-            game_type.to_string()
-        );
+        error!("User tried to free game ke");
         return Err(ServerError::AccessDenied);
     };
 

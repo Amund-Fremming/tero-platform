@@ -1,4 +1,5 @@
 use sqlx::{Pool, Postgres};
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
@@ -54,9 +55,8 @@ pub async fn increment_times_played(
     let row = sqlx::query(&query).bind(game_id).execute(pool).await?;
 
     if row.rows_affected() == 0 {
-        return Err(ServerError::Internal(
-            "Tried to increment non existing spin game".into(),
-        ));
+        warn!("Query failed, no game with id: {}", game_id);
+        return Err(ServerError::NotFound("Game does not exist".into()));
     }
 
     Ok(())
@@ -78,6 +78,7 @@ pub async fn delete_game(
     let row = sqlx::query(&query).bind(id).execute(pool).await?;
 
     if row.rows_affected() == 0 {
+        warn!("Query failed, no game with id: {}", id);
         return Err(ServerError::Internal("Failed to delete game".into()));
     }
 

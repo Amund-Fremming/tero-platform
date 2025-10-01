@@ -88,6 +88,13 @@ pub enum UserType {
     Registered,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserKeys {
+    pub user_id: Uuid,
+    pub auth0_id: Option<String>,
+    pub guest_id: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
     pub id: Uuid,
