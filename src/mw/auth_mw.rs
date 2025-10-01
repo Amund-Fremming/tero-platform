@@ -3,22 +3,21 @@ use std::sync::Arc;
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{HeaderMap, StatusCode, header::AUTHORIZATION},
+    http::{StatusCode, header::AUTHORIZATION},
     middleware::Next,
     response::Response,
 };
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode, decode_header};
 use sqlx::{Pool, Postgres};
 use tracing::{error, info};
-use uuid::Uuid;
 
 use crate::{
     auth::{
-        db::{get_user_id_from_auth0_id, get_user_id_from_guest_id},
+        db::{get_user_id_from_guest_id, get_user_keys_from_auth0_id},
         models::{Claims, SubjectId},
     },
     config::config::CONFIG,
-    integration::models::IntegrationName,
+    mw::common::{extract_header, to_uuid},
     server::{
         app_state::{AppState, Jwks},
         error::ServerError,
@@ -26,7 +25,6 @@ use crate::{
     system_log::models::LogCeverity,
 };
 
-static AUTH0_WEBHOOK_KEY: &str = "Auth0-Webhook-Key";
 static GUEST_AUTHORIZATION: &str = "X-Guest-Authentication";
 
 pub async fn auth_mw(
@@ -36,27 +34,19 @@ pub async fn auth_mw(
 ) -> Result<Response, ServerError> {
     let guest_header = extract_header(AUTHORIZATION.as_str(), req.headers());
     let token_header = extract_header(GUEST_AUTHORIZATION, req.headers());
-    let auth0_webhook_key = extract_header(&AUTH0_WEBHOOK_KEY, req.headers());
 
-    match (guest_header, token_header, auth0_webhook_key) {
-        (None, None, None) => {
+    match (guest_header, token_header) {
+        (None, None) => {
             error!("Missing authentication method");
             return Err(ServerError::Api(
                 StatusCode::UNAUTHORIZED,
                 "Missing authorization header".into(),
             ));
         }
-        (None, None, Some(webhook_key)) => handle_webhook(&mut req, &webhook_key)?,
-        (Some(guest_header), Some(token_header), None) => {
-            handle_token_user(state.clone(), &mut req, &token_header, &guest_header).await?;
-        }
-        (Some(guest_header), None, None) => {
-            handle_guest_user(state.get_pool(), &mut req, &guest_header).await?;
-        }
-        (o1, o2, o3) => {
+        (None, Some(token_header)) => {
             let error_msg = format!(
-                "Wierd error, might be because token is present and guest id is not. Values: {:?}, {:?}, {:?}.",
-                o1, o2, o3
+                "Token header is present but guest header is missing for user: {}",
+                token_header
             );
 
             error!(error_msg);
@@ -69,27 +59,18 @@ pub async fn auth_mw(
 
             return Err(ServerError::Api(
                 StatusCode::UNAUTHORIZED,
-                "Wierd error, please contact".into(),
+                "Missing guest_id".into(),
             ));
+        }
+        (Some(guest_header), None) => {
+            handle_guest_user(state.get_pool(), &mut req, &guest_header).await?;
+        }
+        (Some(guest_header), Some(token_header)) => {
+            handle_token_user(state.clone(), &mut req, &token_header, &guest_header).await?;
         }
     };
 
     Ok(next.run(req).await)
-}
-
-fn handle_webhook(request: &mut Request<Body>, webhook_key: &str) -> Result<(), ServerError> {
-    if webhook_key != CONFIG.auth0.webhook_key {
-        return Err(ServerError::Api(
-            StatusCode::UNAUTHORIZED,
-            "Invalid webhook key".into(),
-        ));
-    }
-
-    let subject = SubjectId::Integration(IntegrationName::Auth0);
-    info!("Request by subject: {:?}", subject);
-    request.extensions_mut().insert(subject);
-
-    Ok(())
 }
 
 async fn handle_guest_user(
@@ -133,40 +114,20 @@ async fn handle_token_user(
 
     let auth0_id = claims.sub.clone();
     let guest_id = to_uuid(guest_header)?;
-    let user = get_user_id_from_auth0_id(state.get_pool(), &auth0_id).await?;
-    
-    if user
-    /*
-    TODO
-    - if user has not guest_id set, but guest_id exists => async sync users
-    - if user has both set, inject id
-     */
+    let user_keys = get_user_keys_from_auth0_id(state.get_pool(), &auth0_id).await?;
 
-    let user_id = get_user_id_from_auth0_id(state.get_pool(), &auth0_id).await?;
-    let subject = SubjectId::Registered(user_id);
+    if Some(guest_id) != user_keys.guest_id {
+        info!("Starting user sync for user id: {}", user_keys.user_id);
+        state.sync_user(user_keys.user_id, guest_id);
+    }
+
+    let subject = SubjectId::Registered(user_keys.user_id);
     info!("Request by subject: {:?}", subject);
 
     request.extensions_mut().insert(claims);
     request.extensions_mut().insert(subject);
 
     Ok(())
-}
-
-fn to_uuid(value: &str) -> Result<Uuid, ServerError> {
-    let Ok(guest_id) = value.parse() else {
-        return Err(ServerError::Api(
-            StatusCode::UNAUTHORIZED,
-            "Guest id is invalid".into(),
-        ));
-    };
-    Ok(guest_id)
-}
-
-fn extract_header(key: &str, header_map: &HeaderMap) -> Option<String> {
-    header_map
-        .get(key)
-        .and_then(|header| header.to_str().ok())
-        .map(|s| s.to_owned())
 }
 
 // Warning: 65% AI generated code

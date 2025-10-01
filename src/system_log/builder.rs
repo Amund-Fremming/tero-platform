@@ -7,7 +7,7 @@ use crate::{
     server::error::ServerError,
     system_log::{
         db,
-        models::{LogAction, LogCeverity, SubjectType},
+        models::{Action, LogCeverity, SubjectType},
     },
 };
 
@@ -15,7 +15,7 @@ pub struct SystemLogBuilder {
     pub pool: Pool<Postgres>,
     pub subject_id: Option<String>,
     pub subject_type: Option<SubjectType>,
-    pub action: Option<LogAction>,
+    pub action: Option<Action>,
     pub ceverity: Option<LogCeverity>,
     pub function_name: Option<String>,
     pub description: Option<String>,
@@ -36,7 +36,7 @@ impl SystemLogBuilder {
         }
     }
 
-    pub async fn subject(mut self, subject: SubjectId) -> Self {
+    pub fn subject(mut self, subject: SubjectId) -> Self {
         let (id, _type) = match subject {
             SubjectId::Guest(id) => (id.to_string(), SubjectType::GuestUser),
             SubjectId::Registered(id) => (id.to_string(), SubjectType::RegisteredUser),
@@ -47,7 +47,7 @@ impl SystemLogBuilder {
         self
     }
 
-    pub fn action(mut self, action: LogAction) -> Self {
+    pub fn action(mut self, action: Action) -> Self {
         self.action = Some(action);
         self
     }
@@ -75,11 +75,7 @@ impl SystemLogBuilder {
     pub async fn log(self) -> Result<(), ServerError> {
         let (subject_id, subject_type) = match (self.subject_id, self.subject_type) {
             (Some(id), Some(_type)) => (id, _type),
-            _ => {
-                return Err(ServerError::Internal(
-                    "SubjectId is required for system logs".into(),
-                ));
-            }
+            _ => ("[SYSTEM]".to_string(), SubjectType::System),
         };
 
         let mut description = self
@@ -91,7 +87,7 @@ impl SystemLogBuilder {
             description = format!("{}...", &description[..509]);
         }
 
-        let action = self.action.unwrap_or_else(|| LogAction::Other);
+        let action = self.action.unwrap_or_else(|| Action::Other);
         let ceverity = self.ceverity.unwrap_or_else(|| LogCeverity::Info);
         let file_name = self.function_name.unwrap_or_else(|| "Not specified".into());
 

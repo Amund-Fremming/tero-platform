@@ -1,21 +1,32 @@
 use std::sync::Arc;
 
+use tracing::{error, info};
+
 use gustcache::GustCache;
 use reqwest::Client;
 use serde::Deserialize;
 use sqlx::{Pool, Postgres};
+use uuid::Uuid;
 
 use crate::{
-    client::gamesession_client::GameSessionClient, config::config::CONFIG,
-    game::models::PagedResponse, server::error::ServerError, system_log::builder::SystemLogBuilder,
+    auth::db,
+    client::gamesession_client::GameSessionClient,
+    config::config::CONFIG,
+    game::models::PagedResponse,
+    server::error::ServerError,
+    system_log::{
+        builder::SystemLogBuilder,
+        models::{Action, LogCeverity},
+    },
 };
 
+#[derive(Clone)]
 pub struct AppState {
     pool: Pool<Postgres>,
     jwks: Jwks,
     client: Client,
     gs_client: GameSessionClient,
-    page_cache: GustCache<Vec<PagedResponse>>,
+    page_cache: Arc<GustCache<Vec<PagedResponse>>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -44,7 +55,7 @@ impl AppState {
         let jwks_url = format!("{}.well-known/jwks.json", CONFIG.auth0.domain);
         let response = client.get(jwks_url).send().await?;
         let jwks = response.json::<Jwks>().await?;
-        let page_cache = GustCache::from_ttl(chrono::Duration::minutes(2));
+        let page_cache = Arc::new(GustCache::from_ttl(chrono::Duration::minutes(2)));
 
         let state = Arc::new(Self {
             pool,
@@ -75,5 +86,41 @@ impl AppState {
 
     pub fn audit(&self) -> SystemLogBuilder {
         SystemLogBuilder::new(self.get_pool())
+    }
+
+    pub fn sync_user(&self, user_id: Uuid, guest_id: Uuid) {
+        let state = self.clone();
+
+        tokio::spawn(async move {
+            let Ok(mut tx) = state.get_pool().begin().await else {
+                error!("Failed to start database transaction");
+                state
+                    .audit()
+                    .action(Action::Other)
+                    .ceverity(LogCeverity::Critical)
+                    .description("Failed to start database transaction")
+                    .log_async();
+
+                return;
+            };
+
+            if let Err(e) = db::tx_sync_user(&mut tx, user_id, guest_id).await {
+                error!("Sync failed: {}", e);
+                let msg = format!(
+                    "Failed to sync user with user_id: {}, and guest_id: {}",
+                    user_id, guest_id
+                );
+                state
+                    .audit()
+                    .action(Action::Sync)
+                    .ceverity(LogCeverity::Critical)
+                    .description(&msg)
+                    .log_async();
+
+                return;
+            }
+
+            info!("User was synced successfully");
+        });
     }
 }

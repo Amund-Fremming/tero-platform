@@ -16,7 +16,7 @@ use crate::{
         models::{Auth0User, Claims, Permission, PutUserRequest, SubjectId},
     },
     server::{app_state::AppState, error::ServerError},
-    system_log::models::{LogAction, LogCeverity},
+    system_log::models::{Action, LogCeverity},
 };
 
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {
@@ -42,10 +42,10 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
 // TODO - strip user if guest
 async fn get_user_from_subject(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<SubjectId>,
+    Extension(subject_id): Extension<SubjectId>,
     Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let user_id = match subject {
+    let user_id = match subject_id {
         SubjectId::Guest(user_id) | SubjectId::Registered(user_id) => user_id,
         SubjectId::Integration(_) => {
             return Err(ServerError::AccessDenied);
@@ -56,7 +56,8 @@ async fn get_user_from_subject(
         error!("Unexpected: user id was previously fetched but is now missing.");
         state
             .audit()
-            .action(LogAction::Read)
+            .subject(subject_id)
+            .action(Action::Read)
             .ceverity(LogCeverity::Critical)
             .function_name("get_user_from_subject")
             .description("Unexpected: user id was previously fetched but is now missing.")

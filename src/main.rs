@@ -5,8 +5,7 @@ use axum::{
     middleware::{from_fn, from_fn_with_state},
 };
 use dotenv::dotenv;
-use sqlx::{Pool, Postgres, pool};
-use tokio::sync::Mutex;
+use sqlx::{Pool, Postgres};
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::FmtSubscriber;
 use uuid::Uuid;

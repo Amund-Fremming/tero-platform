@@ -5,7 +5,7 @@ pub struct SystemLog {
     pub id: i64,
     pub subject_id: String,
     pub subject_type: SubjectType,
-    pub action: LogAction,
+    pub action: Action,
     pub ceverity: LogCeverity,
     pub file_name: String,
     pub description: String,
@@ -22,11 +22,12 @@ pub enum LogCeverity {
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "action", rename_all = "lowercase")]
-pub enum LogAction {
+pub enum Action {
     Create,
     Read,
     Update,
     Delete,
+    Sync,
     Other,
 }
 
@@ -43,7 +44,7 @@ pub enum SubjectType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystemLogRequest {
-    pub action: Option<LogAction>,
+    pub action: Option<Action>,
     pub ceverity: Option<LogCeverity>,
     pub description: Option<String>,
     pub metadata: Option<serde_json::Value>,

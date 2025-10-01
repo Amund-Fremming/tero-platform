@@ -2,14 +2,14 @@ use sqlx::{Pool, Postgres};
 
 use crate::{
     server::error::ServerError,
-    system_log::models::{LogAction, LogCeverity, SubjectType},
+    system_log::models::{Action, LogCeverity, SubjectType},
 };
 
 pub async fn create_system_log(
     pool: &Pool<Postgres>,
     subject_id: &str,
     subject_type: &SubjectType,
-    action: &LogAction,
+    action: &Action,
     ceverity: &LogCeverity,
     file_name: &str,
     description: &str,

@@ -1,22 +1,47 @@
 use chrono::Utc;
-use sqlx::{Pool, Postgres, Row, query, query_as};
+use sqlx::{Pool, Postgres, Row, Transaction, query, query_as};
 use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
-    auth::models::{Auth0User, PutUserRequest, User, UserType},
+    auth::models::{Auth0User, PutUserRequest, User, UserKeys, UserType},
     server::error::ServerError,
 };
 
-pub async fn get_user_by_auth0_id(
-    pool: &Pool<Postgres>,
-    auth0_id: &str,
-) -> Result<User, sqlx::Error> {
-    sqlx::query(
+pub async fn tx_sync_user(
+    tx: &mut Transaction<'_, Postgres>,
+    user_id: Uuid,
+    guest_id: Uuid,
+) -> Result<(), ServerError> {
+    let delete_row = sqlx::query(
         r#"
-        SELECT id
+        DELETE FROM "user"
+        WHERE guest_id = $1
         "#,
     )
+    .bind(guest_id)
+    .execute(&mut **tx)
+    .await?;
+
+    let insert_row = sqlx::query(
+        r#"
+        UPDATE "user"
+        SET guest_id = $1
+        WHERE id = $2
+        "#,
+    )
+    .bind(guest_id)
+    .bind(user_id)
+    .execute(&mut **tx)
+    .await?;
+
+    if delete_row.rows_affected() == 0 || insert_row.rows_affected() == 0 {
+        return Err(ServerError::Internal(
+            "Failed to sync user to the database".into(),
+        ));
+    }
+
+    Ok(())
 }
 
 pub async fn get_user_id_from_guest_id(
@@ -35,13 +60,14 @@ pub async fn get_user_id_from_guest_id(
     .await
 }
 
-pub async fn get_user_id_from_auth0_id(
+pub async fn get_user_keys_from_auth0_id(
     pool: &Pool<Postgres>,
     auth0_id: &str,
-) -> Result<Uuid, ServerError> {
-    let option = sqlx::query_scalar::<_, Uuid>(
+) -> Result<UserKeys, ServerError> {
+    let option = sqlx::query_as::<_, UserKeys>(
         r#"
-        SELECT id from "user"
+        SELECT id, auth0_id, guest_id
+        FROM "user"
         WHERE auth0_id = $1
         "#,
     )
@@ -49,14 +75,14 @@ pub async fn get_user_id_from_auth0_id(
     .fetch_optional(pool)
     .await?;
 
-    let Some(uuid) = option else {
+    let Some(keys) = option else {
         return Err(ServerError::OutOfSync(format!(
             "User id is out of sync with auth0_id {}",
             auth0_id
         )));
     };
 
-    Ok(uuid)
+    Ok(keys)
 }
 
 pub async fn get_user_by_id(

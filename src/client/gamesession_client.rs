@@ -29,7 +29,7 @@ pub enum GameSessionClientError {
     Serialize(#[from] serde_json::Error),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GameSessionClient {
     domain: String,
 }
