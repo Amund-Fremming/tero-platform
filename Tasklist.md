@@ -87,7 +87,8 @@ create for begge trenger mulighet til join, og trenger join key.
 **UniversalService**
 - [x] Pagination support
 - [x] Typed search by game, category
-- [ ] Universal join game
+- [x] Universal join game
+- [ ] Cron job for deleting games that is not longer played
 
 **KeyVault**
 - [x] Setup index and tables

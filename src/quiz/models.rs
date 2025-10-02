@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -31,6 +32,7 @@ pub struct QuizGame {
     pub iterations: i32,
     pub times_played: i32,
     pub questions: Vec<String>,
+    pub last_played: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

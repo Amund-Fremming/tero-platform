@@ -1,3 +1,4 @@
+use chrono::Utc;
 use sqlx::{Pool, Postgres};
 use tracing::warn;
 use uuid::Uuid;
@@ -48,12 +49,17 @@ pub async fn increment_times_played(
     let query = format!(
         r#"
         UPDATE {}
-        SET times_played = times_played + 1
-        WHERE id = $1
+        SET times_played = times_played + 1, last_played = $1
+        WHERE id = $2
         "#,
         game_type.to_string()
     );
-    let row = sqlx::query(&query).bind(game_id).execute(pool).await?;
+
+    let row = sqlx::query(&query)
+        .bind(Utc::now())
+        .bind(game_id)
+        .execute(pool)
+        .await?;
 
     if row.rows_affected() == 0 {
         warn!("Query failed, no game with id: {}", game_id);

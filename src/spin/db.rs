@@ -1,3 +1,4 @@
+use chrono::Utc;
 use sqlx::{Pool, Postgres, Transaction};
 use tracing::error;
 use uuid::Uuid;
@@ -51,8 +52,8 @@ pub async fn tx_persist_spin_session(
 
     let game_row = sqlx::query(
         r#"
-        INSERT INTO "spin_game" (id, name, description, category, iterations, times_played)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO "spin_game" (id, name, description, category, iterations, times_played, last_played)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
     )
     .bind(&game.id)
@@ -61,6 +62,7 @@ pub async fn tx_persist_spin_session(
     .bind(&game.category)
     .bind(&game.iterations)
     .bind(&game.times_played)
+    .bind(Utc::now())
     .execute(&mut **tx)
     .await?;
 

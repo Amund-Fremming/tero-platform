@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -30,6 +31,7 @@ pub struct SpinGame {
     pub category: GameCategory,
     pub iterations: i32,
     pub times_played: i32,
+    pub last_played: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
@@ -92,6 +94,7 @@ impl SpinSession {
             category: self.category.clone(),
             iterations: self.iterations,
             times_played: self.times_played,
+            last_played: Utc::now(),
         };
 
         (game, rounds)
