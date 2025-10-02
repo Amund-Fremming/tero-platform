@@ -1,8 +1,12 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use rand::seq::IndexedRandom;
 use sqlx::{Pool, Postgres};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use crate::{
     key_vault::{db, models::KeyPair},
@@ -10,13 +14,13 @@ use crate::{
 };
 
 pub struct KeyVault {
-    pub in_use: Arc<RwLock<HashSet<String>>>,
+    pub in_use: Arc<RwLock<HashMap<String, Uuid>>>,
 }
 
 impl KeyVault {
     pub fn new() -> Self {
         Self {
-            in_use: Arc::new(RwLock::new(HashSet::new())),
+            in_use: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -27,7 +31,11 @@ impl KeyVault {
     }
 
     /// Creates a new unique key
-    pub async fn create_key(&self, pool: &Pool<Postgres>) -> Result<KeyPair, ServerError> {
+    pub async fn create_key(
+        &self,
+        pool: &Pool<Postgres>,
+        game_id: Uuid,
+    ) -> Result<KeyPair, ServerError> {
         let lock = self.in_use.read().await;
 
         let slot1_id: String;
@@ -47,7 +55,7 @@ impl KeyVault {
 
         let mut lock = self.in_use.write().await;
         let combined_id = format!("{slot1_id} {slot2_id}");
-        lock.insert(combined_id.clone());
+        lock.insert(combined_id.clone(), game_id);
         let join_key = db::get_word_set(pool, &[&slot1_id, &slot2_id]).await?;
 
         Ok(KeyPair {

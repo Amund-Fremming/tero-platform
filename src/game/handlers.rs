@@ -17,7 +17,7 @@ use crate::{
         db::{self, increment_times_played},
         models::{CreateGameRequest, CreateSessionRequest, GameType, PagedRequest},
     },
-    key_vault::models::{KEY_VAULT, KeyPair},
+    key_vault::models::{JoinKey, KEY_VAULT, KeyPair},
     quiz::{
         db::{get_quiz_session_by_id, persist_quiz_session},
         models::QuizSession,
@@ -31,9 +31,9 @@ use crate::{
 
 pub fn game_routes(state: Arc<AppState>) -> Router {
     let game_routes = Router::new()
-        .route("/{game_type}", post(delete_game))
         .route("/{game_type}/page", post(get_game_page))
         .route("/{game_type}/create", post(create_game_session))
+        .route("/{game_type}/{game_id}", post(delete_game))
         .route("/{game_type}/join/{game_id}", post(join_game_session))
         .route("/{game_type}/free-key", post(free_game_key))
         .route(
@@ -57,8 +57,7 @@ async fn delete_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
-    Path(game_type): Path<GameType>,
-    Path(game_id): Path<Uuid>,
+    Path((game_type, game_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
     if let SubjectId::Integration(_) | SubjectId::Guest(_) = subject_id {
         return Err(ServerError::AccessDenied);
@@ -75,8 +74,7 @@ async fn delete_game(
 async fn join_game_session(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path(game_type): Path<GameType>,
-    Path(game_id): Path<Uuid>,
+    Path((game_type, join_key)): Path<(GameType, JoinKey)>,
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject_id {
         SubjectId::Guest(id) | SubjectId::Registered(id) => id,
@@ -85,7 +83,7 @@ async fn join_game_session(
 
     let gs_client = state.get_session_client();
     let response = gs_client
-        .join_game_session(state.get_client(), game_type, user_id, game_id)
+        .join_game_session(state.get_client(), game_type, user_id, join_key)
         .await?;
 
     Ok((StatusCode::OK, Json(response)))
@@ -98,6 +96,7 @@ async fn create_game_session(
 ) -> Result<impl IntoResponse, ServerError> {
     let client = state.get_client();
     let gs_client = state.get_session_client();
+
     let response = gs_client
         .create_game_session(client, game_type, request)
         .await?;
@@ -117,14 +116,15 @@ async fn initiate_game_session(
 
     let client = state.get_client();
     let gs_client = state.get_session_client();
-    let key = KEY_VAULT.create_key(state.get_pool()).await?;
 
     let response = match game_type {
         GameType::Spin => {
             let mut session =
                 get_spin_session_by_game_id(state.get_pool(), user_id, &game_id).await?;
 
+            let key = KEY_VAULT.create_key(state.get_pool(), session.id).await?;
             session.set_key(key);
+
             gs_client
                 .initiate_gamesession(game_type, session, client)
                 .await?
@@ -132,7 +132,9 @@ async fn initiate_game_session(
         GameType::Quiz => {
             let mut session = get_quiz_session_by_id(state.get_pool(), &game_id).await?;
 
+            let key = KEY_VAULT.create_key(state.get_pool(), session.id).await?;
             session.set_key(key);
+
             gs_client
                 .initiate_gamesession(game_type, session, client)
                 .await?
@@ -144,10 +146,16 @@ async fn initiate_game_session(
 
 async fn get_game_page(
     State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
     Path(game_type): Path<GameType>,
     Json(request): Json<PagedRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
+    if let SubjectId::Integration(_) = subject_id {
+        return Err(ServerError::AccessDenied);
+    }
+
     let response = db::get_game_page(state.get_pool(), game_type, request).await?;
+
     Ok((StatusCode::OK, Json(response)))
 }
 

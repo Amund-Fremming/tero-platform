@@ -13,7 +13,7 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameSessionResponse {
-    game_id: Uuid,
+    pub game_id: Uuid,
     hub_address: String,
 }
 

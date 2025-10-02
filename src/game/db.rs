@@ -16,6 +16,7 @@ pub async fn get_game_page(
         r#"
         SELECT id, name, description, category, iterations, times_played
         FROM {}
+        ORDER BY times_played DESC
         "#,
         game_type.to_string()
     );

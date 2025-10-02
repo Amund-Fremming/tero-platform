@@ -114,7 +114,9 @@ CREATE INDEX "idx_join_key_id" ON "join_key" ("id");
 CREATE INDEX "idx_system_log_ceverity" ON "system_log" ("ceverity");;
 
 CREATE INDEX "idx_user_id" ON "user" ("id");
+CREATE INDEX "idx_user_auth0_id" ON "user" ("auth0_id");
 CREATE INDEX "idx_user_last_active" ON "user" ("last_active");
+CREATE INDEX "idx_user_keys" ON "user" ("id", "auth0_id", "guest_id");
 CREATE INDEX "idx_auth0_id" ON "user" ("guest_id");
 
 CREATE INDEX "idx_quiz_game_id" ON "quiz_game" ("id");

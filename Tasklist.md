@@ -1,9 +1,13 @@
 # Tasklist
 
-## Quick notes
+## LEFT OFF
+join_key må sendes med så folk kan joine (trengs ikke for quiz initiate)
+quiz initiate skal retunrere quiz session komplett
+kanskje gjøre create og initiate game relativt like, lettere å håndtere join key.
+initiate gamesession må matches på type, er bare spin som skal la folk joine, quiz ikke.
+create for begge trenger mulighet til join, og trenger join key.
 
-- Split webhook mw to its own middleware
-- 
+## Quick notes
 
 - read before spin blir random, mindre for bruker å velge
 - Persist gamesession needs to be protected. Make singalR hub a integration, validate M2M Token
@@ -49,10 +53,10 @@
 - [x] Decode and validate tokens
 - [x] Permission checks for endpoints
 - [x] Maybe update endpoints to require user id for fetching users, targeting query on id, not auth0_id or guest_id. this also makes it possible for admins to query users 
+- [x] Create guest user
+- [x] Is valid token endpoint (also serves as user sync)
+- [x] User sync
 - [ ] Expand refresh token / jwt to be longer than an hour
-- [ ] Update user sync from backend to auth0 (daily job/trigger)
-- [ ] Cron job for deleting guest users after a time, then make the frontend users need to create new. This is to prevent having to link users to guest users
-- [ ] Sync for when a user gets admin permissions, needs to update user type
 
 **M2M GameSession**
 - [ ] Create M2M support for gamesession
@@ -66,18 +70,11 @@
 - [x] Expand search cache to support passing in functions to handle when its a cache miss
 - [x] Move cache out in its own reusable crate for future use
 - [ ] Change ttl to use UNIC EPOCH not datetime
-- [ ] Tests to verify that the cache works
+- [ ] Verify that cache works
 
 **Generic feature**
 - [x] Typed search in a handler
 - [x] GenericGameService with GetGame, Typed Search
-
-**SignalR microservice**
-- [x] Create C# project with signal installed
-- [ ] Create a http client for talking to rust
-- [ ] Create api in c# for consuming games from rust
-- [ ] Create or add a cache solution for storing game sessions
-- [ ] Add core game logic in c# project
 
 **Rust connection to microservice**
 - [x] Create api in rust for consuming created games in db
@@ -85,10 +82,11 @@
 - [x] Api for storing games to database from c#
 - [x] Api for creation of game, send to c# and client
 - [x] Api for game session creation, send to c# and client
+- [ ] Error handling for client, game full/game does not exist ..
 
 **UniversalService**
 - [x] Pagination support
-- [ ] typed search by game, category, page and most played
+- [x] Typed search by game, category
 - [ ] Universal join game
 
 **KeyVault**
@@ -96,10 +94,11 @@
 - [x] Setup db handlers
 - [x] Implement core
 - [x] strategy for removing no longer used slugs
+- [ ] Strategy for cron job, could be errors that make keys stay forever
 
 **Admin**
-- [ ] Delete games
-- [ ] Endponints for user history, how many active last week, last month and today
+- [x] Delete games
+- [x] Endponints for user history, how many active last week, last month and today
 - [ ] Endpoints for fetching logs based on time or ceverity
 - [ ] Possibility to view config like redirect (for debugging)
 
@@ -108,16 +107,19 @@
 - [ ] Endpoint for persisting a game
 - [ ] Endpoint for listing a game
 
-**Audit**
+**System log**
 - [x] Enums for action and ceverity
 - [x] Implement and SQL migration
 - [x] Import integrations on startup to INTEGRAITON_IDS and INTEGRATION_NAMES
-- [x] Add audit logs where neccesarry
+- [ ] Add logs where neccesarry
+- [ ] api for gettings logs by filters/pagination
 
-**Consents**
-- [ ] Make it a static table / json file loaded from startup
-- [ ] Use a bitmap for storing consents on the user profile rather than a own table for lookups (No need for realations and joins)
-- [ ] Push notifications/alterts/mail?/sms?
+**SignalR microservice**
+- [x] Create C# project with signal installed
+- [ ] Create a http client for talking to rust
+- [ ] Create api in c# for consuming games from rust
+- [ ] Create or add a cache solution for storing game sessions
+- [ ] Add core game logic in c# project
 
 **Notifications**
 - [ ] Model a solution for storing alerts

@@ -114,7 +114,7 @@ pub struct User {
 impl User {
     pub fn strip(&self) -> Self {
         Self {
-            id: self.id,
+            id: Uuid::nil(),
             auth0_id: None,
             user_type: UserType::Guest,
             last_active: Utc::now(),
@@ -135,4 +135,26 @@ pub struct PutUserRequest {
     pub name: Option<String>,
     pub email: Option<String>,
     pub birth_date: Option<NaiveDate>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActivityStats {
+    pub total_game_count: i32,
+    pub total_user_count: i32,
+    pub recent: RecentUserStats,
+    pub average: AverageUserStats,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct RecentUserStats {
+    pub this_month: i32,
+    pub this_week: i32,
+    pub today: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct AverageUserStats {
+    pub avg_month_users: i32,
+    pub avg_week_users: i32,
+    pub avg_daily_users: i32,
 }

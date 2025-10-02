@@ -16,7 +16,7 @@ use crate::{
         models::{Auth0User, Claims, Permission, PutUserRequest, SubjectId},
     },
     server::{app_state::AppState, error::ServerError},
-    system_log::models::{Action, LogCeverity},
+    system_log::models::{Action, LogCeverity, SubjectType},
 };
 
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {
@@ -35,24 +35,26 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
                 .post(auth0_trigger_endpoint),
         )
         .route("/list", get(list_all_users))
+        .route("/valid-token", get(validate_token))
+        .route("/stats", get(get_user_activity_stats))
         .route("/activity/{user_id}", put(patch_user_activity))
         .with_state(state)
 }
 
-// TODO - strip user if guest
 async fn get_user_from_subject(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let user_id = match subject_id {
-        SubjectId::Guest(user_id) | SubjectId::Registered(user_id) => user_id,
+    let (user_id, is_guest) = match subject_id {
+        SubjectId::Guest(user_id) => (user_id, true),
+        SubjectId::Registered(user_id) => (user_id, false),
         SubjectId::Integration(_) => {
             return Err(ServerError::AccessDenied);
         }
     };
 
-    let Some(user) = db::get_user_by_id(state.get_pool(), &user_id).await? else {
+    let Some(mut user) = db::get_user_by_id(state.get_pool(), &user_id).await? else {
         error!("Unexpected: user id was previously fetched but is now missing.");
         state
             .audit()
@@ -66,7 +68,23 @@ async fn get_user_from_subject(
         return Err(ServerError::NotFound("User not found".into()));
     };
 
+    if is_guest {
+        user = user.strip();
+    }
+
     Ok((StatusCode::OK, Json(user)))
+}
+
+async fn validate_token(
+    Extension(subject_id): Extension<SubjectId>,
+) -> Result<impl IntoResponse, ServerError> {
+    let valid_type = match subject_id {
+        SubjectId::Guest(_) => SubjectType::GuestUser,
+        SubjectId::Registered(_) => SubjectType::RegisteredUser,
+        SubjectId::Integration(_) => SubjectType::Integration,
+    };
+
+    Ok((StatusCode::OK, Json(valid_type)))
 }
 
 async fn create_guest_user(
@@ -156,10 +174,10 @@ pub async fn auth0_trigger_endpoint(
 
 pub async fn list_all_users(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<SubjectId>,
+    Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(_) = subject else {
+    let SubjectId::Registered(_) = subject_id else {
         return Err(ServerError::AccessDenied);
     };
 
@@ -169,4 +187,24 @@ pub async fn list_all_users(
 
     let users = db::list_all_users(state.get_pool()).await?;
     Ok((StatusCode::OK, Json(users)))
+}
+
+async fn get_user_activity_stats(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Extension(claims): Extension<Claims>,
+) -> Result<impl IntoResponse, ServerError> {
+    let SubjectId::Registered(_) = subject_id else {
+        error!("Unauthorized guest user or integration tried accessing admin endpoint");
+        return Err(ServerError::AccessDenied);
+    };
+
+    if let Some(missing) = claims.missing_permission([Permission::ReadAdmin]) {
+        error!("Unauthorized user tried accessing admin endpoint");
+        return Err(ServerError::Permission(missing));
+    }
+
+    let stats = db::get_user_activity_stats(state.get_pool()).await?;
+
+    Ok((StatusCode::OK, Json(stats)))
 }

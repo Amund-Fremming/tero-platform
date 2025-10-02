@@ -4,7 +4,10 @@ use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
-    auth::models::{Auth0User, PutUserRequest, User, UserKeys, UserType},
+    auth::models::{
+        ActivityStats, Auth0User, AverageUserStats, PutUserRequest, RecentUserStats, User,
+        UserKeys, UserType,
+    },
     server::error::ServerError,
 };
 
@@ -222,4 +225,45 @@ pub async fn list_all_users(pool: &Pool<Postgres>) -> Result<Vec<User>, sqlx::Er
     query_as::<_, User>(r#"SELECT * FROM "user""#)
         .fetch_all(pool)
         .await
+}
+
+// TODO - maybe use more tasks to optimize
+pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivityStats, sqlx::Error> {
+    let total_game_count: i32 = sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM games")
+        .fetch_one(pool)
+        .await?;
+
+    let total_user_count: i32 = sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM user")
+        .fetch_one(pool)
+        .await?;
+
+    let recent = sqlx::query_as::<_, RecentUserStats>(
+        r#"
+        SELECT
+            COUNT(*) FILTER (WHERE created_at >= date_trunc('month', CURRENT_DATE)) AS this_month_users,
+            COUNT(*) FILTER (WHERE created_at >= date_trunc('week', CURRENT_DATE)) AS this_week_users,
+            COUNT(*) FILTER (WHERE created_at = CURRENT_DATE) AS todays_users,
+        FROM users
+        "#
+    )
+    .fetch_one(pool)
+    .await?;
+
+    let average = sqlx::query_as::<_, AverageUserStats>(
+        r#"
+        SELECT
+            (SELECT AVG(cnt) FROM (SELECT COUNT(*) AS cnt FROM users GROUP BY date_trunc('month', created_at)) t) AS avg_month_users,
+            (SELECT AVG(cnt) FROM (SELECT COUNT(*) AS cnt FROM users GROUP BY date_trunc('week', created_at)) t) AS avg_week_users,
+            (SELECT AVG(cnt) FROM (SELECT COUNT(*) AS cnt FROM users GROUP BY created_at) t) AS avg_daily_users
+        "#
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(ActivityStats {
+        total_game_count,
+        total_user_count,
+        recent,
+        average,
+    })
 }
