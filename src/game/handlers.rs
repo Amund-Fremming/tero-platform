@@ -4,7 +4,7 @@ use axum::{
     Extension, Json, Router,
     extract::{Path, State},
     response::IntoResponse,
-    routing::post,
+    routing::{get, post},
 };
 use reqwest::StatusCode;
 use uuid::Uuid;
@@ -13,11 +13,13 @@ use tracing::error;
 
 use crate::{
     auth::models::{Claims, Permission, SubjectId},
+    client::gamesession_client::InteractiveGameResponse,
+    config::config::CONFIG,
     game::{
         db::{self, increment_times_played},
-        models::{CreateGameRequest, CreateSessionRequest, GameType, PagedRequest},
+        models::{CreateGameRequest, GameConverter, GameEnvelope, GameType, PagedRequest},
     },
-    key_vault::models::{JoinKey, KEY_VAULT, KeyPair},
+    key_vault::models::{JoinKeySet, KEY_VAULT},
     quiz::{
         db::{get_quiz_session_by_id, persist_quiz_session},
         models::QuizSession,
@@ -30,28 +32,35 @@ use crate::{
 };
 
 pub fn game_routes(state: Arc<AppState>) -> Router {
-    let game_routes = Router::new()
+    let generic_routes = Router::new()
         .route("/{game_type}/page", post(get_game_page))
-        .route("/{game_type}/create", post(create_game_session))
+        .route("/{game_type}/create", post(create_interactive_game))
         .route("/{game_type}/{game_id}", post(delete_game))
-        .route("/{game_type}/join/{game_id}", post(join_game_session))
         .route("/{game_type}/free-key", post(free_game_key))
-        .route(
-            "/{game_type}/initiate/{game_id}",
-            post(initiate_game_session),
-        )
         .with_state(state.clone());
 
-    let session_routes = Router::new()
-        .route("/persist", post(persist_game_session))
+    let standalone_routes = Router::new()
+        .route(
+            "/{game_type}/initiate/{game_id}",
+            get(initiate_standalone_game),
+        )
+        .route("/persist", post(persist_standalone_game))
+        .with_state(state.clone());
+
+    let interactive_routes = Router::new()
+        .route("/persist", post(persist_interactive_game))
+        .route(
+            "/{game_type}/initiate/{game_id}",
+            post(initiate_interactive_game),
+        )
+        .route("/{game_type}/join/{game_id}", post(join_interactive_game))
         .with_state(state.clone());
 
     Router::new()
-        .nest("/", game_routes)
-        .nest("/session", session_routes)
+        .nest("/", generic_routes)
+        .nest("/static", standalone_routes)
+        .nest("/session", interactive_routes)
 }
-
-/* Game handlers */
 
 async fn delete_game(
     State(state): State<Arc<AppState>>,
@@ -71,40 +80,99 @@ async fn delete_game(
     Ok(StatusCode::OK)
 }
 
-async fn join_game_session(
+async fn join_interactive_game(
+    State(_state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Path((game_type, join_word)): Path<(GameType, String)>,
+) -> Result<impl IntoResponse, ServerError> {
+    if let SubjectId::Integration(id) = subject_id {
+        error!("Integration {} tried accessing user endpoint", id);
+        return Err(ServerError::AccessDenied);
+    }
+
+    let hub_address = format!(
+        "{}hubs/{}",
+        CONFIG.server.session_domain,
+        game_type.to_string()
+    );
+
+    let response = InteractiveGameResponse {
+        join_word,
+        hub_address,
+    };
+
+    Ok((StatusCode::OK, Json(response)))
+}
+
+async fn create_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path((game_type, join_key)): Path<(GameType, JoinKey)>,
+    Path(game_type): Path<GameType>,
+    Json(request): Json<CreateGameRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject_id {
         SubjectId::Guest(id) | SubjectId::Registered(id) => id,
         _ => return Err(ServerError::AccessDenied),
     };
 
-    let gs_client = state.get_session_client();
-    let response = gs_client
-        .join_game_session(state.get_client(), game_type, user_id, join_key)
-        .await?;
-
-    Ok((StatusCode::OK, Json(response)))
-}
-
-async fn create_game_session(
-    State(state): State<Arc<AppState>>,
-    Path(game_type): Path<GameType>,
-    Json(request): Json<CreateGameRequest>,
-) -> Result<impl IntoResponse, ServerError> {
     let client = state.get_client();
     let gs_client = state.get_session_client();
+    let join_key = KEY_VAULT.create_key(state.get_pool()).await?;
 
-    let response = gs_client
-        .create_game_session(client, game_type, request)
-        .await?;
+    let payload = match game_type {
+        GameType::Spin => {
+            let session = SpinSession::from_create_request(request, user_id);
+            session.to_json_value()?
+        }
+        GameType::Quiz => {
+            let session = QuizSession::from_create_request(request);
+            session.to_json_value()?
+        }
+    };
+
+    let join_word = join_key.join_word.clone();
+    let envelope = GameEnvelope {
+        game_type: game_type.clone(),
+        host_id: user_id,
+        join_key,
+        payload,
+    };
+
+    gs_client.create_interactive_game(client, &envelope).await?;
+
+    let hub_address = format!(
+        "{}/hubs/{}",
+        CONFIG.server.session_domain,
+        game_type.to_string()
+    );
+
+    let response = InteractiveGameResponse {
+        join_word,
+        hub_address,
+    };
 
     Ok((StatusCode::CREATED, Json(response)))
 }
 
-async fn initiate_game_session(
+async fn initiate_standalone_game(
+    State(state): State<Arc<AppState>>,
+    Extension(_subject_id): Extension<SubjectId>,
+    Path((game_type, game_id)): Path<(GameType, Uuid)>,
+) -> Result<impl IntoResponse, ServerError> {
+    let response = match game_type {
+        GameType::Quiz => get_quiz_session_by_id(state.get_pool(), &game_id).await?,
+        _ => {
+            return Err(ServerError::Api(
+                StatusCode::BAD_REQUEST,
+                "This game does not have static support".into(),
+            ));
+        }
+    };
+
+    return Ok((StatusCode::OK, Json(response)));
+}
+
+async fn initiate_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Path((game_type, game_id)): Path<(GameType, Uuid)>,
@@ -116,29 +184,40 @@ async fn initiate_game_session(
 
     let client = state.get_client();
     let gs_client = state.get_session_client();
+    let join_key = KEY_VAULT.create_key(state.get_pool()).await?;
 
-    let response = match game_type {
+    let payload = match game_type {
         GameType::Spin => {
-            let mut session =
-                get_spin_session_by_game_id(state.get_pool(), user_id, &game_id).await?;
-
-            let key = KEY_VAULT.create_key(state.get_pool(), session.id).await?;
-            session.set_key(key);
-
-            gs_client
-                .initiate_gamesession(game_type, session, client)
-                .await?
+            let session = get_spin_session_by_game_id(state.get_pool(), user_id, game_id).await?;
+            session.to_json_value()?
         }
-        GameType::Quiz => {
-            let mut session = get_quiz_session_by_id(state.get_pool(), &game_id).await?;
-
-            let key = KEY_VAULT.create_key(state.get_pool(), session.id).await?;
-            session.set_key(key);
-
-            gs_client
-                .initiate_gamesession(game_type, session, client)
-                .await?
+        _ => {
+            return Err(ServerError::Api(
+                StatusCode::BAD_REQUEST,
+                "This game does not have session support".into(),
+            ));
         }
+    };
+
+    let join_word = join_key.join_word.clone();
+    let envelope = GameEnvelope {
+        game_type: game_type.clone(),
+        host_id: user_id,
+        join_key,
+        payload,
+    };
+
+    gs_client.initiate_gamesession(client, &envelope).await?;
+
+    let hub_address = format!(
+        "{}/hubs/{}",
+        CONFIG.server.session_domain,
+        game_type.to_string()
+    );
+
+    let response = InteractiveGameResponse {
+        join_word,
+        hub_address,
     };
 
     Ok((StatusCode::OK, Json(response)))
@@ -155,17 +234,41 @@ async fn get_game_page(
     }
 
     let response = db::get_game_page(state.get_pool(), game_type, request).await?;
-
     Ok((StatusCode::OK, Json(response)))
 }
 
-/* Session routes */
+pub async fn persist_standalone_game(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Json(request): Json<GameEnvelope>,
+) -> Result<impl IntoResponse, ServerError> {
+    if let SubjectId::Integration(id) = subject_id {
+        error!("Integration {} tried to store a static game", id);
+        return Err(ServerError::AccessDenied);
+    }
 
-async fn persist_game_session(
+    match request.game_type {
+        GameType::Quiz => {
+            let session: QuizSession = serde_json::from_value(request.payload)?;
+            persist_quiz_session(state.get_pool(), &session).await?;
+        }
+        _ => {
+            return Err(ServerError::Api(
+                StatusCode::BAD_REQUEST,
+                "This game does not have static persist support".into(),
+            ));
+        }
+    }
+
+    Ok(StatusCode::CREATED)
+}
+
+// Only called from tero-session
+async fn persist_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
-    Json(request): Json<CreateSessionRequest>,
+    Json(request): Json<GameEnvelope>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Integration(_) = subject_id else {
         error!("User tried to persist game session");
@@ -190,24 +293,21 @@ async fn persist_game_session(
         }
         GameType::Quiz => {
             let session: QuizSession = serde_json::from_value(request.payload)?;
-            match session.times_played {
-                0 => increment_times_played(pool, GameType::Quiz, &session.id).await?,
-                _ => persist_quiz_session(pool, &session).await?,
-            }
+            increment_times_played(pool, GameType::Quiz, &session.id).await?;
         }
     }
 
-    return Ok(StatusCode::OK);
+    return Ok(StatusCode::CREATED);
 }
 
 async fn free_game_key(
     State(_state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
-    Json(key_pair): Json<KeyPair>,
+    Json(key_pair): Json<JoinKeySet>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Integration(_) = subject_id else {
-        error!("User tried to free game ke");
+        error!("User tried to free game keys/word");
         return Err(ServerError::AccessDenied);
     };
 
@@ -215,6 +315,6 @@ async fn free_game_key(
         return Err(ServerError::Permission(missing));
     }
 
-    KEY_VAULT.remove_key(&key_pair.id).await;
+    KEY_VAULT.remove_key(&key_pair.combined_id).await;
     Ok(StatusCode::OK)
 }

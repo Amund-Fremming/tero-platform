@@ -1,20 +1,13 @@
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
-use uuid::Uuid;
 
-use crate::{
-    game::models::{
-        CreateGameRequest, CreateSessionRequest, GameType, Identify, JoinSessionRequest,
-    },
-    quiz::models::QuizSession,
-    spin::models::SpinSession,
-};
+use crate::game::models::GameEnvelope;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GameSessionResponse {
-    pub game_id: Uuid,
-    hub_address: String,
+pub struct InteractiveGameResponse {
+    pub join_word: String,
+    pub hub_address: String,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -55,77 +48,22 @@ impl GameSessionClient {
         Ok(())
     }
 
-    pub async fn join_game_session(
+    pub async fn create_interactive_game(
         &self,
         client: &Client,
-        game_type: GameType,
-        user_id: Uuid,
-        game_id: Uuid,
-    ) -> Result<GameSessionResponse, GameSessionClientError> {
-        let uri = "session/join".to_string();
-        let hub_name = game_type.to_string();
-        let request = JoinSessionRequest {
-            user_id,
-            game_id,
-            game_type,
-        };
-        self.send_json(client, &uri, &request).await?;
-
-        Ok(GameSessionResponse {
-            game_id,
-            hub_address: format!("{}hubs/{}", self.domain, hub_name),
-        })
-    }
-
-    pub async fn create_game_session(
-        &self,
-        client: &Client,
-        game_type: GameType,
-        request: CreateGameRequest,
-    ) -> Result<GameSessionResponse, GameSessionClientError> {
-        let hub_name = game_type.to_string();
-        let (game_id, payload) = match game_type {
-            GameType::Spin => {
-                let session = SpinSession::from_create_request(request);
-                let value = serde_json::to_value(&session)?;
-                (session.id, value)
-            }
-            GameType::Quiz => {
-                let session = QuizSession::from_create_request(request);
-                let value = serde_json::to_value(&session)?;
-                (session.id, value)
-            }
-        };
-
+        envelope: &GameEnvelope,
+    ) -> Result<(), GameSessionClientError> {
         let uri = format!("{}session/create", self.domain);
-        let request = CreateSessionRequest { game_type, payload };
-        self.send_json(client, &uri, request).await?;
-
-        Ok(GameSessionResponse {
-            game_id,
-            hub_address: format!("{}hubs/{}", self.domain, hub_name),
-        })
+        self.send_json(client, &uri, envelope).await
     }
 
-    pub async fn initiate_gamesession<T>(
+    pub async fn initiate_gamesession(
         &self,
-        game_type: GameType,
-        gamesession: T,
         client: &Client,
-    ) -> Result<GameSessionResponse, GameSessionClientError>
-    where
-        T: Serialize + Identify,
-    {
-        let hub_name = game_type.to_string();
-        let payload = serde_json::to_value(&gamesession)?;
-        let uri = "session/initiate".to_string();
-        let request = CreateSessionRequest { game_type, payload };
-        self.send_json(client, &uri, request).await?;
-
-        Ok(GameSessionResponse {
-            game_id: gamesession.get_id(),
-            hub_address: format!("{}hubs/{}", self.domain, hub_name),
-        })
+        envelope: &GameEnvelope,
+    ) -> Result<(), GameSessionClientError> {
+        let uri = "/games/initiate".to_string();
+        self.send_json(client, &uri, envelope).await
     }
 
     async fn send_json<T: Serialize>(
@@ -135,8 +73,9 @@ impl GameSessionClient {
         body: T,
     ) -> Result<(), GameSessionClientError> {
         info!("GameSessionClient sending request to: {}", uri);
+        let url = format!("{}/{}", self.domain, uri);
         let response = client
-            .post(format!("{}/{}", self.domain, uri))
+            .post(&url)
             .header("content-type", "application/json")
             .json(&body)
             .send()

@@ -10,7 +10,7 @@ use crate::{
 pub async fn get_spin_session_by_game_id(
     pool: &Pool<Postgres>,
     host_id: Uuid,
-    game_id: &Uuid,
+    game_id: Uuid,
 ) -> Result<SpinSession, ServerError> {
     let game = sqlx::query_as::<_, SpinGame>(
         r#"

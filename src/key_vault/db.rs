@@ -1,6 +1,14 @@
+use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 
-use crate::{key_vault::models::JoinKey, server::error::ServerError};
+use crate::server::error::ServerError;
+
+// This is here private because it fucked up alot of wrong imports
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+struct JoinKey {
+    pub id: String,
+    pub word: String,
+}
 
 pub async fn get_word_set(pool: &Pool<Postgres>, keys: &[&str; 2]) -> Result<String, ServerError> {
     let keys = sqlx::query_as::<_, JoinKey>(

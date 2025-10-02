@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    game::models::{CreateGameRequest, GameBase, GameCategory, Identify},
-    key_vault::models::KeyPair,
-};
+use crate::game::models::{CreateGameRequest, GameBase, GameCategory, GameConverter};
+
+impl GameConverter for QuizSession {
+    fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(self)
+    }
+}
 
 impl Into<GameBase> for QuizGame {
     fn into(self) -> GameBase {
@@ -33,7 +36,6 @@ pub struct QuizGame {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QuizSession {
     pub id: Uuid,
-    pub join_key: Option<KeyPair>,
     pub name: String,
     pub description: Option<String>,
     pub category: GameCategory,
@@ -43,17 +45,10 @@ pub struct QuizSession {
     pub times_played: i32,
 }
 
-impl Identify for QuizSession {
-    fn get_id(&self) -> Uuid {
-        self.id
-    }
-}
-
 impl QuizSession {
     pub fn from_create_request(request: CreateGameRequest) -> Self {
         Self {
             id: Uuid::new_v4(),
-            join_key: None,
             name: request.name,
             description: request.description,
             category: request.category.unwrap_or(GameCategory::Default),
@@ -67,7 +62,6 @@ impl QuizSession {
     pub fn from_game(quiz: QuizGame) -> Self {
         Self {
             id: quiz.id,
-            join_key: None,
             name: quiz.name,
             description: quiz.description,
             category: quiz.category,
@@ -76,9 +70,5 @@ impl QuizSession {
             questions: quiz.questions,
             times_played: quiz.times_played,
         }
-    }
-
-    pub fn set_key(&mut self, key: KeyPair) {
-        self.join_key = Some(key);
     }
 }

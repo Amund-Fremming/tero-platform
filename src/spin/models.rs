@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    game::models::{CreateGameRequest, GameBase, GameCategory, Identify},
-    key_vault::models::KeyPair,
-};
+use crate::game::models::{CreateGameRequest, GameBase, GameCategory, GameConverter};
 
 impl Into<GameBase> for SpinGame {
     fn into(self) -> GameBase {
@@ -16,6 +13,12 @@ impl Into<GameBase> for SpinGame {
             iterations: self.iterations,
             times_played: self.times_played,
         }
+    }
+}
+
+impl GameConverter for SpinSession {
+    fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(self)
     }
 }
 
@@ -41,7 +44,6 @@ pub struct Round {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpinSession {
     pub id: Uuid,
-    pub join_key: Option<KeyPair>,
     pub host_id: Uuid,
     pub name: String,
     pub description: Option<String>,
@@ -54,18 +56,11 @@ pub struct SpinSession {
     pub rounds: Vec<Round>,
 }
 
-impl Identify for SpinSession {
-    fn get_id(&self) -> Uuid {
-        self.id
-    }
-}
-
 impl SpinSession {
-    pub fn from_create_request(request: CreateGameRequest) -> Self {
+    pub fn from_create_request(request: CreateGameRequest, host_id: Uuid) -> Self {
         Self {
             id: Uuid::new_v4(),
-            join_key: None,
-            host_id: request.host_id,
+            host_id: host_id,
             name: request.name,
             description: request.description,
             category: request.category.unwrap_or(GameCategory::Default),
@@ -78,7 +73,6 @@ impl SpinSession {
     pub fn from_game_and_rounds(host_id: Uuid, game: SpinGame, rounds: Vec<Round>) -> Self {
         Self {
             id: game.id,
-            join_key: None,
             host_id,
             name: game.name,
             description: game.description,
@@ -101,9 +95,5 @@ impl SpinSession {
         };
 
         (game, rounds)
-    }
-
-    pub fn set_key(&mut self, pair: KeyPair) {
-        self.join_key = Some(pair);
     }
 }

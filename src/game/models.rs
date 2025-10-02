@@ -4,8 +4,10 @@ use std::hash::Hash;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub trait Identify {
-    fn get_id(&self) -> Uuid;
+use crate::key_vault::models::JoinKeySet;
+
+pub trait GameConverter {
+    fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error>;
 }
 
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, sqlx::Type)]
@@ -52,7 +54,7 @@ pub enum Gender {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Hash)]
+#[derive(Debug, Serialize, Deserialize, Hash, Clone)]
 pub enum GameType {
     Quiz,
     Spin,
@@ -96,21 +98,15 @@ impl PagedResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateSessionRequest {
+pub struct GameEnvelope {
+    pub join_key: JoinKeySet,
+    pub host_id: Uuid,
     pub game_type: GameType,
     pub payload: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct JoinSessionRequest {
-    pub user_id: Uuid,
-    pub game_id: Uuid,
-    pub game_type: GameType,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateGameRequest {
-    pub host_id: Uuid,
     pub name: String,
     pub description: Option<String>,
     pub category: Option<GameCategory>,
