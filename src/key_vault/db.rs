@@ -3,7 +3,7 @@ use sqlx::{Pool, Postgres};
 
 use crate::common::error::ServerError;
 
-// This is here private because it fucked up alot of wrong imports
+// Placed here private because it fucked me up big time
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
 struct JoinKey {
     pub id: String,
