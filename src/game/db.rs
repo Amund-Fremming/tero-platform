@@ -4,15 +4,16 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
-    game::models::{GameBase, GameType, PagedRequest, PagedResponse},
-    server::error::ServerError,
+    common::{error::ServerError, models::PagedResponse},
+    config::config::CONFIG,
+    game::models::{GameBase, GamePageRequest, GameType},
 };
 
 pub async fn get_game_page(
     pool: &Pool<Postgres>,
     game_type: GameType,
-    request: PagedRequest,
-) -> Result<PagedResponse, sqlx::Error> {
+    request: GamePageRequest,
+) -> Result<PagedResponse<GameBase>, sqlx::Error> {
     let mut sql = format!(
         r#"
         SELECT id, name, description, category, iterations, times_played
@@ -23,8 +24,9 @@ pub async fn get_game_page(
     );
 
     let mut query = Vec::new();
-    let offset = 20 * request.page_num;
-    let limit = 21;
+    let page_size = CONFIG.server.page_size as u16;
+    let offset = page_size * request.page_num;
+    let limit = page_size + 1;
 
     if let Some(category) = &request.category {
         query.push(format!(" category = '{}'", category.as_str()));
@@ -35,7 +37,7 @@ pub async fn get_game_page(
 
     let games = sqlx::query_as::<_, GameBase>(&sql).fetch_all(pool).await?;
 
-    let has_next = games.len() < 21;
+    let has_next = games.len() < limit as usize;
     let page = PagedResponse::new(games, has_next);
 
     Ok(page)

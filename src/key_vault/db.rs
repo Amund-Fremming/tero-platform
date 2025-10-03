@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 
-use crate::server::error::ServerError;
+use crate::common::error::ServerError;
 
 // This is here private because it fucked up alot of wrong imports
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]

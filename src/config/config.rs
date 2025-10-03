@@ -24,6 +24,10 @@ fn default_port() -> String {
     "3000".into()
 }
 
+fn default_page_size() -> u8 {
+    20
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServerConfig {
     #[serde(default = "default_address")]
@@ -31,6 +35,8 @@ pub struct ServerConfig {
     #[serde(default = "default_port")]
     pub port: String,
     pub session_domain: String,
+    #[serde(default = "default_page_size")]
+    pub page_size: u8,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

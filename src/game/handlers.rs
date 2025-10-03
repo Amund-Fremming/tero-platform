@@ -14,17 +14,17 @@ use tracing::error;
 use crate::{
     auth::models::{Claims, Permission, SubjectId},
     client::gamesession_client::InteractiveGameResponse,
+    common::{app_state::AppState, error::ServerError},
     config::config::CONFIG,
     game::{
         db::{self, increment_times_played},
-        models::{CreateGameRequest, GameConverter, GameEnvelope, GameType, PagedRequest},
+        models::{CreateGameRequest, GameConverter, GameEnvelope, GameType, GamePageRequest},
     },
     key_vault::models::{JoinKeySet, KEY_VAULT},
     quiz::{
         db::{get_quiz_session_by_id, persist_quiz_session},
         models::QuizSession,
     },
-    server::{app_state::AppState, error::ServerError},
     spin::{
         db::{get_spin_session_by_game_id, tx_persist_spin_session},
         models::SpinSession,
@@ -227,7 +227,7 @@ async fn get_game_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Path(game_type): Path<GameType>,
-    Json(request): Json<PagedRequest>,
+    Json(request): Json<GamePageRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     if let SubjectId::Integration(_) = subject_id {
         return Err(ServerError::AccessDenied);

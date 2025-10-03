@@ -3,8 +3,8 @@ use reqwest::StatusCode;
 use tracing::info;
 
 use crate::{
-    auth::models::SubjectId, config::config::CONFIG, integration::models::IntegrationName,
-    mw::common::extract_header, server::error::ServerError,
+    auth::models::SubjectId, common::error::ServerError, config::config::CONFIG,
+    integration::models::IntegrationName, mw::common::extract_header,
 };
 
 static AUTH0_WEBHOOK_KEY: &str = "Auth0-Webhook-Key";

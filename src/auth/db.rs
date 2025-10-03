@@ -8,7 +8,7 @@ use crate::{
         ActivityStats, Auth0User, AverageUserStats, PutUserRequest, RecentUserStats, User,
         UserKeys, UserType,
     },
-    server::error::ServerError,
+    common::error::ServerError,
 };
 
 pub async fn tx_sync_user(

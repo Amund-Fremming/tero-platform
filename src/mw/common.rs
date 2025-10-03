@@ -2,7 +2,7 @@ use axum::http::HeaderMap;
 use reqwest::StatusCode;
 use uuid::Uuid;
 
-use crate::server::error::ServerError;
+use crate::common::error::ServerError;
 
 pub fn to_uuid(value: &str) -> Result<Uuid, ServerError> {
     let Ok(guest_id) = value.parse() else {

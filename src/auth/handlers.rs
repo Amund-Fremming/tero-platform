@@ -15,7 +15,7 @@ use crate::{
         db::{self},
         models::{Auth0User, Claims, Permission, PutUserRequest, SubjectId},
     },
-    server::{app_state::AppState, error::ServerError},
+    common::{app_state::AppState, error::ServerError},
     system_log::models::{Action, LogCeverity, SubjectType},
 };
 
@@ -61,7 +61,7 @@ async fn get_user_from_subject(
             .subject(subject_id)
             .action(Action::Read)
             .ceverity(LogCeverity::Critical)
-            .function_name("get_user_from_subject")
+            .function("get_user_from_subject")
             .description("Unexpected: user id was previously fetched but is now missing.")
             .log_async();
 

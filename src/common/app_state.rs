@@ -11,9 +11,9 @@ use uuid::Uuid;
 use crate::{
     auth::db,
     client::gamesession_client::GameSessionClient,
+    common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
-    game::models::PagedResponse,
-    server::error::ServerError,
+    game::models::GameBase,
     system_log::{
         builder::SystemLogBuilder,
         models::{Action, LogCeverity},
@@ -26,7 +26,7 @@ pub struct AppState {
     jwks: Jwks,
     client: Client,
     gs_client: GameSessionClient,
-    page_cache: Arc<GustCache<Vec<PagedResponse>>>,
+    page_cache: Arc<GustCache<Vec<PagedResponse<GameBase>>>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

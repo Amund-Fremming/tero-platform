@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 use crate::{
     auth::handlers::{protected_auth_routes, public_auth_routes},
+    common::{app_state::AppState, error::ServerError},
     config::config::CONFIG,
     game::handlers::game_routes,
     health::handlers::health_routes,
@@ -20,12 +21,12 @@ use crate::{
         models::{INTEGRATION_IDS, INTEGRATION_NAMES, IntegrationName},
     },
     mw::{auth_mw::auth_mw, request_mw::request_mw},
-    server::{app_state::AppState, error::ServerError},
     system_log::handlers::log_routes,
 };
 
 mod auth;
 mod client;
+mod common;
 mod config;
 mod game;
 mod health;
@@ -33,7 +34,6 @@ mod integration;
 mod key_vault;
 mod mw;
 mod quiz;
-mod server;
 mod spin;
 mod system_log;
 

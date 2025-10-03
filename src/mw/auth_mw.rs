@@ -16,12 +16,12 @@ use crate::{
         db::{get_user_id_from_guest_id, get_user_keys_from_auth0_id},
         models::{Claims, SubjectId},
     },
-    config::config::CONFIG,
-    mw::common::{extract_header, to_uuid},
-    server::{
+    common::{
         app_state::{AppState, Jwks},
         error::ServerError,
     },
+    config::config::CONFIG,
+    mw::common::{extract_header, to_uuid},
     system_log::models::LogCeverity,
 };
 
@@ -54,7 +54,7 @@ pub async fn auth_mw(
                 .audit()
                 .ceverity(LogCeverity::Critical)
                 .description(&error_msg)
-                .function_name("auth_mw")
+                .function("auth_mw")
                 .log_async();
 
             return Err(ServerError::Api(

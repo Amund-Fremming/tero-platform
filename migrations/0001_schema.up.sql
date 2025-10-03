@@ -50,9 +50,10 @@ CREATE TABLE "system_log" (
     "subject_type" subject_type NOT NULL,
     "action" log_action NOT NULL,
     "ceverity" log_ceverity NOT NULL,
-    "file_name" VARCHAR(50) NOT NULL,
+    "function" VARCHAR(50) NOT NULL,
     "description" VARCHAR(512) NOT NULL,
-    "metadata" JSONB
+    "metadata" JSONB,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE "join_key" (

@@ -3,8 +3,8 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::{
+    common::error::ServerError,
     quiz::models::{QuizGame, QuizSession},
-    server::error::ServerError,
 };
 
 pub async fn get_quiz_session_by_id(

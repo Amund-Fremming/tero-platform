@@ -5,8 +5,8 @@ use sqlx::{Pool, Postgres};
 use tokio::sync::RwLock;
 
 use crate::{
+    common::error::ServerError,
     key_vault::{db, models::JoinKeySet},
-    server::error::ServerError,
 };
 
 pub struct KeyVault {

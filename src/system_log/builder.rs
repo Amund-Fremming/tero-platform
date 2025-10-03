@@ -4,7 +4,7 @@ use tracing::error;
 
 use crate::{
     auth::models::SubjectId,
-    server::error::ServerError,
+    common::error::ServerError,
     system_log::{
         db,
         models::{Action, LogCeverity, SubjectType},
@@ -17,7 +17,7 @@ pub struct SystemLogBuilder {
     pub subject_type: Option<SubjectType>,
     pub action: Option<Action>,
     pub ceverity: Option<LogCeverity>,
-    pub function_name: Option<String>,
+    pub function: Option<String>,
     pub description: Option<String>,
     pub metadata: Option<serde_json::Value>,
 }
@@ -30,7 +30,7 @@ impl SystemLogBuilder {
             subject_type: None,
             action: None,
             ceverity: None,
-            function_name: None,
+            function: None,
             description: None,
             metadata: None,
         }
@@ -57,8 +57,8 @@ impl SystemLogBuilder {
         self
     }
 
-    pub fn function_name(mut self, file_name: &str) -> Self {
-        self.function_name = Some(file_name.into());
+    pub fn function(mut self, function_name: &str) -> Self {
+        self.function = Some(function_name.into());
         self
     }
 
@@ -89,7 +89,7 @@ impl SystemLogBuilder {
 
         let action = self.action.unwrap_or_else(|| Action::Other);
         let ceverity = self.ceverity.unwrap_or_else(|| LogCeverity::Info);
-        let file_name = self.function_name.unwrap_or_else(|| "Not specified".into());
+        let function = self.function.unwrap_or_else(|| "Not specified".into());
 
         db::create_system_log(
             &self.pool,
@@ -97,7 +97,7 @@ impl SystemLogBuilder {
             &subject_type,
             &action,
             &ceverity,
-            &file_name,
+            &function,
             &description,
             &self.metadata,
         )

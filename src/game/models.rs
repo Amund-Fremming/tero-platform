@@ -70,9 +70,9 @@ impl fmt::Display for GameType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Hash)]
-pub struct PagedRequest {
+pub struct GamePageRequest {
     pub category: Option<GameCategory>,
-    pub page_num: u32,
+    pub page_num: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
@@ -83,18 +83,6 @@ pub struct GameBase {
     pub category: GameCategory,
     pub iterations: i32,
     pub times_played: i32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PagedResponse {
-    games: Vec<GameBase>,
-    has_next: bool,
-}
-
-impl PagedResponse {
-    pub fn new(games: Vec<GameBase>, has_next: bool) -> Self {
-        Self { games, has_next }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

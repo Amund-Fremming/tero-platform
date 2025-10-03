@@ -4,7 +4,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::{
-    server::error::ServerError,
+    common::error::ServerError,
     spin::models::{Round, SpinGame, SpinSession},
 };
 
