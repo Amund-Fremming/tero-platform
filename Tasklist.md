@@ -3,6 +3,7 @@
 ## Quick notes
 
 - read before spin blir random, mindre for bruker å velge
+- Make read before spin, it makes it simpler for the user to create games, less friction
 - Persist game session needs to be protected. Make singalR hub a integration, validate M2M Token
 
 ## Tasklist
@@ -74,9 +75,10 @@
 - [x] Api for storing games to database from c#
 - [x] Api for creation of game, send to c# and client
 - [x] Api for game session creation, send to c# and client
+- [ ] Join game fn that needs to validate that a user can join a game before getting the url to connect
 - [ ] Error handling for client, game full/game does not exist ..
 
-**UniversalService**
+**Universal Service**
 - [x] Pagination support
 - [x] Typed search by game, category
 - [x] Universal join game
