@@ -13,32 +13,21 @@ pub trait GameConverter {
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, sqlx::Type)]
 #[sqlx(type_name = "game_category", rename_all = "lowercase")]
 pub enum GameCategory {
-    #[serde(rename(deserialize = "warm_up"))]
-    Warmup,
-    #[serde(rename(deserialize = "casual"))]
     Casual,
-    #[serde(rename(deserialize = "spicy"))]
-    Spicy,
-    #[serde(rename(deserialize = "dangerous"))]
-    Dangerous,
-    #[serde(rename(deserialize = "ladies"))]
+    Random,
     Ladies,
-    #[serde(rename(deserialize = "boys"))]
     Boys,
-    #[serde(rename(deserialize = "default"))]
     Default,
 }
 
 impl GameCategory {
     pub fn as_str(&self) -> &str {
         match self {
-            GameCategory::Warmup => "warm_up",
             GameCategory::Casual => "casual",
-            GameCategory::Spicy => "spicy",
-            GameCategory::Dangerous => "dangerous",
             GameCategory::Ladies => "ladies",
             GameCategory::Boys => "boys",
             GameCategory::Default => "default",
+            GameCategory::Random => "random",
         }
     }
 }
@@ -54,7 +43,8 @@ pub enum Gender {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Hash, Clone)]
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, sqlx::Type)]
+#[sqlx(type_name = "game_type", rename_all = "lowercase")]
 pub enum GameType {
     Quiz,
     Spin,
@@ -70,9 +60,15 @@ impl fmt::Display for GameType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Hash)]
-pub struct GamePageRequest {
-    pub category: Option<GameCategory>,
+pub struct GamePageQuery {
     pub page_num: u16,
+    pub category: Option<GameCategory>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SavedGamePageQuery {
+    pub page_num: u16,
+    pub game_type: Option<GameType>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
@@ -98,4 +94,12 @@ pub struct CreateGameRequest {
     pub name: String,
     pub description: Option<String>,
     pub category: Option<GameCategory>,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct SavedGame {
+    pub id: i64,
+    pub user_id: Uuid,
+    pub game_id: Uuid,
+    pub game_type: GameType,
 }

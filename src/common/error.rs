@@ -4,7 +4,7 @@ use axum::{http::StatusCode, response::IntoResponse};
 use thiserror::Error;
 use tracing::error;
 
-use crate::{auth::models::Permission, client::gamesession_client::GameSessionClientError};
+use crate::{auth::models::Permission, client::gs_client_error::GSClientError};
 
 #[derive(Debug, Error)]
 pub enum ServerError {
@@ -39,7 +39,7 @@ pub enum ServerError {
     Json(#[from] serde_json::Error),
 
     #[error("GameSessionClient error: {0}")]
-    GameSessionClientError(#[from] GameSessionClientError),
+    GameSessionClientError(#[from] GSClientError),
 
     #[error("Out of sync error: {0}")]
     OutOfSync(String),

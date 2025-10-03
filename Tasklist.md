@@ -1,17 +1,9 @@
 # Tasklist
 
-## LEFT OFF
-join_key må sendes med så folk kan joine (trengs ikke for quiz initiate)
-quiz initiate skal retunrere quiz session komplett
-kanskje gjøre create og initiate game relativt like, lettere å håndtere join key.
-initiate gamesession må matches på type, er bare spin som skal la folk joine, quiz ikke.
-create for begge trenger mulighet til join, og trenger join key.
-
 ## Quick notes
 
 - read before spin blir random, mindre for bruker å velge
-- Persist gamesession needs to be protected. Make singalR hub a integration, validate M2M Token
-- add write system log permission
+- Persist game session needs to be protected. Make singalR hub a integration, validate M2M Token
 
 ## Tasklist
 
@@ -100,20 +92,19 @@ create for begge trenger mulighet til join, og trenger join key.
 **Admin**
 - [x] Delete games
 - [x] Endponints for user history, how many active last week, last month and today
-- [ ] Endpoints for fetching logs based on time or ceverity
 - [ ] Possibility to view config like redirect (for debugging)
 
 **Store games**
-- [ ] Model relations table for a registered user to persist games they have played
-- [ ] Endpoint for persisting a game
+- [x] Model relations table for a registered user to persist games they have played
+- [x] Endpoint for persisting a game
 - [ ] Endpoint for listing a game
 
 **System log**
 - [x] Enums for action and ceverity
 - [x] Implement and SQL migration
 - [x] Import integrations on startup to INTEGRAITON_IDS and INTEGRATION_NAMES
+- [x] api for gettings logs by filters/pagination
 - [ ] Add logs where neccesarry
-- [ ] api for gettings logs by filters/pagination
 
 **SignalR microservice**
 - [x] Create C# project with signal installed
@@ -128,4 +119,8 @@ create for begge trenger mulighet til join, og trenger join key.
 - [ ] endpoint for admins to create alerts
 
 **Cleanup/refactor**
+- [ ] Some generic code for paginated queries
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)
+- [ ] Split migrations for better overview
+- [ ] Go over indexes and optimize
+- [ ] Create relations where possible

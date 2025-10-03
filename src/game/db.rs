@@ -6,13 +6,13 @@ use uuid::Uuid;
 use crate::{
     common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
-    game::models::{GameBase, GamePageRequest, GameType},
+    game::models::{GameBase, GamePageQuery, GameType, SavedGame, SavedGamePageQuery},
 };
 
 pub async fn get_game_page(
     pool: &Pool<Postgres>,
     game_type: GameType,
-    request: GamePageRequest,
+    request: GamePageQuery,
 ) -> Result<PagedResponse<GameBase>, sqlx::Error> {
     let mut sql = format!(
         r#"
@@ -74,7 +74,7 @@ pub async fn increment_times_played(
 pub async fn delete_game(
     pool: &Pool<Postgres>,
     game_type: &GameType,
-    id: &Uuid,
+    id: Uuid,
 ) -> Result<(), ServerError> {
     let query = format!(
         r#"
@@ -92,4 +92,41 @@ pub async fn delete_game(
     }
 
     Ok(())
+}
+
+pub async fn save_game(
+    pool: &Pool<Postgres>,
+    game_type: &GameType,
+    user_id: Uuid,
+    game_id: Uuid,
+) -> Result<(), ServerError> {
+    let row = sqlx::query(
+        r#"
+        INSERT INTO "saved_game" (id, user_id, game_id, game_type)
+        VALUES ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(Uuid::new_v4())
+    .bind(user_id)
+    .bind(game_id)
+    .bind(game_type)
+    .execute(pool)
+    .await?;
+
+    if row.rows_affected() == 0 {
+        return Err(ServerError::Internal(
+            "Failed to insert to table `saved_game`".into(),
+        ));
+    }
+
+    Ok(())
+}
+
+pub async fn get_saved_games_page(
+    pool: &Pool<Postgres>,
+    user_id: Uuid,
+    query: SavedGamePageQuery,
+) -> Result<PagedResponse<SavedGame>, ServerError> {
+    todo!();
+    Ok(PagedResponse::new(vec![], false))
 }

@@ -81,7 +81,7 @@ impl fmt::Display for SubjectType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SyslogPageRequest {
+pub struct SyslogPageQuery {
     pub page_num: u16,
     pub subject_type: Option<SubjectType>,
     pub action: Option<Action>,

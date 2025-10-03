@@ -4,12 +4,12 @@ use sqlx::{Pool, Postgres};
 use crate::{
     common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
-    system_log::models::{Action, LogCeverity, SubjectType, SyslogPageRequest, SystemLog},
+    system_log::models::{Action, LogCeverity, SubjectType, SyslogPageQuery, SystemLog},
 };
 
 pub async fn get_system_log_page(
     pool: &Pool<Postgres>,
-    request: SyslogPageRequest,
+    request: SyslogPageQuery,
 ) -> Result<PagedResponse<SystemLog>, sqlx::Error> {
     let mut query = format!(
         r#"

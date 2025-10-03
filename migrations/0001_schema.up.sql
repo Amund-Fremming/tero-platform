@@ -1,6 +1,11 @@
 -- Add migration script here
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+CREATE TYPE "game_type" AS ENUM (
+    'spin',
+    'quiz'
+);
+
 CREATE TYPE "integration_name" AS ENUM (
     'auth0',
     'session'
@@ -35,14 +40,22 @@ CREATE TYPE game_category AS ENUM (
     'casual',
     'random'
     'ladies',
-    'boys'
+    'boys',
+    'default'
 );
 
 CREATE TYPE gender AS ENUM (
     'm',
     'f',
     'u'   
-)
+);
+
+CREATE TABLE "saved_game" (
+    "id" BIGSERIAL PRIMARY KEY,
+    "user_id" UUID NOT NULL,
+    "game_id" UUID NOT NULL,
+    "game_type" game_type NOT NULL
+);
 
 CREATE TABLE "system_log" (
     "id" BIGSERIAL PRIMARY KEY,
@@ -57,19 +70,20 @@ CREATE TABLE "system_log" (
 );
 
 CREATE TABLE "join_key" (
-    "id" PRIMARY KEY VARCHAR(7),
-    "name" VARCHAR(4) NOT NULL
-)
+    "id" VARCHAR(8) PRIMARY KEY ,
+    "word" VARCHAR(5) NOT NULL
+);
 
 CREATE TABLE "integration" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "subject" VARCHAR(40) NOT NULL,
     "name" VARCHAR(30) NOT NULL
-)
+);
 
 CREATE TABLE "user" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "auth0_id" VARCHAR,
+    "guest_id" VARCHAR,
     "user_type" user_type NOT NULL DEFAULT 'guest',
     "last_active" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "birth_date" DATE,
@@ -110,9 +124,11 @@ CREATE TABLE "spin_game_round" (
 
 ALTER TABLE "spin_game_round" ADD CONSTRAINT "spin_game_round_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
 
+CREATE INDEX "idx_saved_game_id" ON "saved_game" ("id");
+
 CREATE INDEX "idx_join_key_id" ON "join_key" ("id");
 
-CREATE INDEX "idx_system_log_ceverity" ON "system_log" ("ceverity");;
+CREATE INDEX "idx_system_log_ceverity" ON "system_log" ("ceverity");
 
 CREATE INDEX "idx_user_id" ON "user" ("id");
 CREATE INDEX "idx_user_auth0_id" ON "user" ("auth0_id");

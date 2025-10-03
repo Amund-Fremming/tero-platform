@@ -15,7 +15,7 @@ use crate::{
     common::{app_state::AppState, error::ServerError},
     system_log::{
         db,
-        models::{CreateSyslogRequest, SyslogPageRequest},
+        models::{CreateSyslogRequest, SyslogPageQuery},
     },
 };
 
@@ -30,14 +30,14 @@ async fn get_system_log_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
-    Query(query): Query<SyslogPageRequest>,
+    Query(query): Query<SyslogPageQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Registered(_) = subject_id else {
         error!("Unauthorized subject tried reading system logs");
         return Err(ServerError::AccessDenied);
     };
 
-    if let Some(missing) = claims.missing_permission([]) {
+    if let Some(missing) = claims.missing_permission([Permission::ReadAdmin]) {
         return Err(ServerError::Permission(missing));
     }
 

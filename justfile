@@ -1,3 +1,8 @@
+# Resets the db
+reset-db:
+    cargo sqlx database reset --force -y
+
+
 # Simple git command
 push msg:
     git add .

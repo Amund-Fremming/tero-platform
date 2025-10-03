@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Extension, Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::IntoResponse,
     routing::{get, post},
 };
@@ -13,12 +13,15 @@ use tracing::error;
 
 use crate::{
     auth::models::{Claims, Permission, SubjectId},
-    client::gamesession_client::InteractiveGameResponse,
+    client::gs_client::InteractiveGameResponse,
     common::{app_state::AppState, error::ServerError},
     config::config::CONFIG,
     game::{
         db::{self, increment_times_played},
-        models::{CreateGameRequest, GameConverter, GameEnvelope, GameType, GamePageRequest},
+        models::{
+            CreateGameRequest, GameConverter, GameEnvelope, GamePageQuery, GameType,
+            SavedGamePageQuery,
+        },
     },
     key_vault::models::{JoinKeySet, KEY_VAULT},
     quiz::{
@@ -37,6 +40,8 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
         .route("/{game_type}/create", post(create_interactive_game))
         .route("/{game_type}/{game_id}", post(delete_game))
         .route("/{game_type}/free-key", post(free_game_key))
+        .route("/{game_type}/save/{game_id}", post(save_game))
+        .route("/saved", get(get_saved_games_page))
         .with_state(state.clone());
 
     let standalone_routes = Router::new()
@@ -76,7 +81,7 @@ async fn delete_game(
         return Err(ServerError::Permission(missing));
     }
 
-    db::delete_game(state.get_pool(), &game_type, &game_id).await?;
+    db::delete_game(state.get_pool(), &game_type, game_id).await?;
     Ok(StatusCode::OK)
 }
 
@@ -227,7 +232,7 @@ async fn get_game_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Path(game_type): Path<GameType>,
-    Json(request): Json<GamePageRequest>,
+    Json(request): Json<GamePageQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
     if let SubjectId::Integration(_) = subject_id {
         return Err(ServerError::AccessDenied);
@@ -301,7 +306,6 @@ async fn persist_interactive_game(
 }
 
 async fn free_game_key(
-    State(_state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
     Json(key_pair): Json<JoinKeySet>,
@@ -317,4 +321,32 @@ async fn free_game_key(
 
     KEY_VAULT.remove_key(&key_pair.combined_id).await;
     Ok(StatusCode::OK)
+}
+
+async fn save_game(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Path((game_type, game_id)): Path<(GameType, Uuid)>,
+) -> Result<impl IntoResponse, ServerError> {
+    let SubjectId::Registered(user_id) = subject_id else {
+        error!("Unregistered user or integration tried saving a game");
+        return Err(ServerError::AccessDenied);
+    };
+
+    db::save_game(state.get_pool(), &game_type, user_id, game_id).await?;
+    Ok(StatusCode::CREATED)
+}
+
+async fn get_saved_games_page(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Query(query): Query<SavedGamePageQuery>,
+) -> Result<impl IntoResponse, ServerError> {
+    let SubjectId::Registered(user_id) = subject_id else {
+        error!("Unregistered user or integration tried saving a game");
+        return Err(ServerError::AccessDenied);
+    };
+
+    let page = db::get_saved_games_page(state.get_pool(), user_id, query).await?;
+    Ok((StatusCode::OK, Json(page)))
 }

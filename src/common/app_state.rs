@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     auth::db,
-    client::gamesession_client::GameSessionClient,
+    client::gs_client::GameSessionClient,
     common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
     game::models::GameBase,
