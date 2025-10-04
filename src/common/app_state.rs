@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     auth::db,
-    client::gs_client::GameSessionClient,
+    client::gs_client::GSClient,
     common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
     game::models::GameBase,
@@ -25,7 +25,7 @@ pub struct AppState {
     pool: Pool<Postgres>,
     jwks: Jwks,
     client: Client,
-    gs_client: GameSessionClient,
+    gs_client: GSClient,
     page_cache: Arc<GustCache<Vec<PagedResponse<GameBase>>>>,
 }
 
@@ -50,7 +50,7 @@ impl AppState {
     pub async fn from_connection_string(connection_string: &str) -> Result<Arc<Self>, ServerError> {
         let pool = Pool::<Postgres>::connect(&connection_string).await?;
         let client = Client::new();
-        let gs_client = GameSessionClient::new(&CONFIG.server.session_domain);
+        let gs_client = GSClient::new(&CONFIG.server.gs_domain);
 
         let jwks_url = format!("{}.well-known/jwks.json", CONFIG.auth0.domain);
         let response = client.get(jwks_url).send().await?;
@@ -80,7 +80,7 @@ impl AppState {
         &self.client
     }
 
-    pub fn get_session_client(&self) -> &GameSessionClient {
+    pub fn get_gs_client(&self) -> &GSClient {
         &self.gs_client
     }
 

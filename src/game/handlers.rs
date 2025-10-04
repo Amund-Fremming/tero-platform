@@ -62,7 +62,7 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
         .with_state(state.clone());
 
     Router::new()
-        .nest("/", generic_routes)
+        .nest("/general", generic_routes)
         .nest("/static", standalone_routes)
         .nest("/session", interactive_routes)
 }
@@ -95,11 +95,7 @@ async fn join_interactive_game(
         return Err(ServerError::AccessDenied);
     }
 
-    let hub_address = format!(
-        "{}hubs/{}",
-        CONFIG.server.session_domain,
-        game_type.to_string()
-    );
+    let hub_address = format!("{}hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
 
     let response = InteractiveGameResponse {
         join_word,
@@ -121,7 +117,7 @@ async fn create_interactive_game(
     };
 
     let client = state.get_client();
-    let gs_client = state.get_session_client();
+    let gs_client = state.get_gs_client();
     let join_key = KEY_VAULT.create_key(state.get_pool()).await?;
 
     let payload = match game_type {
@@ -145,11 +141,7 @@ async fn create_interactive_game(
 
     gs_client.create_interactive_game(client, &envelope).await?;
 
-    let hub_address = format!(
-        "{}/hubs/{}",
-        CONFIG.server.session_domain,
-        game_type.to_string()
-    );
+    let hub_address = format!("{}/hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
 
     let response = InteractiveGameResponse {
         join_word,
@@ -188,7 +180,7 @@ async fn initiate_interactive_game(
     };
 
     let client = state.get_client();
-    let gs_client = state.get_session_client();
+    let gs_client = state.get_gs_client();
     let join_key = KEY_VAULT.create_key(state.get_pool()).await?;
 
     let payload = match game_type {
@@ -212,13 +204,9 @@ async fn initiate_interactive_game(
         payload,
     };
 
-    gs_client.initiate_gamesession(client, &envelope).await?;
+    gs_client.initiate_game_session(client, &envelope).await?;
 
-    let hub_address = format!(
-        "{}/hubs/{}",
-        CONFIG.server.session_domain,
-        game_type.to_string()
-    );
+    let hub_address = format!("{}/hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
 
     let response = InteractiveGameResponse {
         join_word,

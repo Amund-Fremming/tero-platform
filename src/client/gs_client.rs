@@ -11,11 +11,11 @@ pub struct InteractiveGameResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct GameSessionClient {
+pub struct GSClient {
     domain: String,
 }
 
-impl GameSessionClient {
+impl GSClient {
     pub fn new(domain: impl Into<String>) -> Self {
         let domain = domain.into();
 
@@ -23,15 +23,13 @@ impl GameSessionClient {
     }
 
     pub async fn health_check(&self, client: &Client) -> Result<(), GSClientError> {
-        let response = client.get(format!("{}/health", self.domain)).send().await?;
+        let response = client.get(format!("{}health", self.domain)).send().await?;
         if !response.status().is_success() {
-            error!("Failed heath check on session microservice");
             return Err(GSClientError::ApiError(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "Failed to reach session microservice".into(),
+                "Failed to reach game session microservice".into(),
             ));
         }
-        info!("GameSession microservice is healthy");
 
         Ok(())
     }
@@ -45,7 +43,7 @@ impl GameSessionClient {
         self.send_json(client, &uri, envelope).await
     }
 
-    pub async fn initiate_gamesession(
+    pub async fn initiate_game_session(
         &self,
         client: &Client,
         envelope: &GameEnvelope,
@@ -60,7 +58,7 @@ impl GameSessionClient {
         uri: &str,
         body: T,
     ) -> Result<(), GSClientError> {
-        info!("GameSessionClient sending request to: {}", uri);
+        info!("GSClient sending request to: {}", uri);
         let url = format!("{}/{}", self.domain, uri);
         let response = client
             .post(&url)
@@ -72,7 +70,7 @@ impl GameSessionClient {
         let status = response.status();
         let body = response.text().await.unwrap_or("No body".into());
         if !status.is_success() {
-            error!("GameSessionClient request failed: {} - {}", status, body);
+            error!("GSClient request failed: {} - {}", status, body);
             return Err(GSClientError::ApiError(status, body));
         }
 

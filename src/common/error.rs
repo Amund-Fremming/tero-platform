@@ -38,8 +38,8 @@ pub enum ServerError {
     #[error("Json error: {0}")]
     Json(#[from] serde_json::Error),
 
-    #[error("GameSessionClient error: {0}")]
-    GameSessionClientError(#[from] GSClientError),
+    #[error("GSClient error: {0}")]
+    GSClientError(#[from] GSClientError),
 
     #[error("Out of sync error: {0}")]
     OutOfSync(String),
@@ -94,8 +94,8 @@ impl IntoResponse for ServerError {
                 error!("Gust Cache error: {}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, String::new())
             }
-            ServerError::GameSessionClientError(e) => {
-                error!("GameSessionClient error: {}", e);
+            ServerError::GSClientError(e) => {
+                error!("GSClient error: {}", e);
                 (
                     StatusCode::SERVICE_UNAVAILABLE,
                     String::from("Upstream service unavailable"),

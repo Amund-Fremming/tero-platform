@@ -4,6 +4,8 @@ use axum::{Json, Router, extract::State, response::IntoResponse, routing::get};
 use reqwest::StatusCode;
 use serde_json::json;
 
+use tracing::error;
+
 use crate::{
     common::{app_state::AppState, error::ServerError},
     health::db,
@@ -30,13 +32,12 @@ async fn health_detailed(
         Err(_) => "unhealthy".to_string(),
     };
 
-    let session_status = match state
-        .get_session_client()
-        .health_check(state.get_client())
-        .await
-    {
+    let session_status = match state.get_gs_client().health_check(state.get_client()).await {
         Ok(_) => "healthy".to_string(),
-        Err(_) => "unhealthy".to_string(),
+        Err(e) => {
+            error!("Failed game session health check: {}", e);
+            "unhealthy".to_string()
+        }
     };
 
     let json = json!({

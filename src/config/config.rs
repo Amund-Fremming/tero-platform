@@ -34,7 +34,7 @@ pub struct ServerConfig {
     pub address: String,
     #[serde(default = "default_port")]
     pub port: String,
-    pub session_domain: String,
+    pub gs_domain: String,
     #[serde(default = "default_page_size")]
     pub page_size: u8,
 }
