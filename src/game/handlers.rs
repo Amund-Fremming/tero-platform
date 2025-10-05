@@ -327,6 +327,15 @@ async fn save_game(
     Ok(StatusCode::CREATED)
 }
 
+async fn delete_saved_game(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Path((base_id, game_id)): Path<(Uuid, Uuid)>,
+) -> Result<impl IntoResponse, ServerError> {
+    todo!();
+    Ok(())
+}
+
 async fn get_saved_games_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,

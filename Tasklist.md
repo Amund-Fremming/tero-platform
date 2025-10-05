@@ -124,6 +124,7 @@
 - [ ] endpoint for admins to create alerts
 
 **Cleanup/refactor**
+- [ ] Dynamic query builders, make a service that does this with builder pattern, now its super ugly everywhere, and hard to read
 - [ ] Some generic code for paginated queries
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)
 - [ ] Split migrations for better overview

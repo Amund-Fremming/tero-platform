@@ -1,7 +1,6 @@
 -- Add migration script here
 
 -- Drop constraints
-ALTER TABLE "spin_game_round" DROP CONSTRAINT "spin_game_round_fk";
 
 -- Drop indexes
 DROP INDEX IF EXISTS "idx_saved_game_id";
@@ -10,16 +9,18 @@ DROP INDEX IF EXISTS "idx_join_key_id";
 
 DROP INDEX IF EXISTS "idx_system_log_ceverity";
 
-DROP INDEX IF EXISTS "idx_user_id";
-DROP INDEX IF EXISTS "idx_user_last_active";
-DROP INDEX IF EXISTS "idx_auth0_id";
-
 DROP INDEX IF EXISTS "idx_quiz_game_id";
-DROP INDEX IF EXISTS "idx_quiz_game_category";
 
 DROP INDEX IF EXISTS "idx_spin_game_id";
-DROP INDEX IF EXISTS "idx_spin_game_category";
-DROP INDEX IF EXISTS "idx_spin_game_round_id";
+
+DROP INDEX IF EXISTS "idx_game_base_id";
+DROP INDEX IF EXISTS "idx_game_base_game_type";
+DROP INDEX IF EXISTS "idx_game_base_type_and_category";
+
+DROP INDEX IF EXISTS "idx_user_id";
+DROP INDEX IF EXISTS "idx_user_auth0_id";
+DROP INDEX IF EXISTS "idx_user_last_active";
+DROP INDEX IF EXISTS "idx_user_keys";
 
 -- Drop tables
 DROP TABLE IF EXISTS "saved_game";

@@ -71,7 +71,7 @@ CREATE TABLE "system_log" (
 );
 
 CREATE TABLE "join_key" (
-    "id" VARCHAR(8) PRIMARY KEY ,
+    "id" VARCHAR(8) PRIMARY KEY,
     "word" VARCHAR(5) NOT NULL
 );
 
@@ -120,27 +120,21 @@ CREATE TABLE "spin_game" (
     "rounds" TEXT[] NOT NULL
 );
 
-ALTER TABLE "spin_game_round" ADD CONSTRAINT "spin_game_round_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
-
-CREATE INDEX "idx_saved_game_id" ON "saved_game" ("id");
+CREATE INDEX "idx_saved_game_id" ON "saved_game" ("base_id", "game_id");
 
 CREATE INDEX "idx_join_key_id" ON "join_key" ("id");
 
 CREATE INDEX "idx_system_log_ceverity" ON "system_log" ("ceverity");
 
-CREATE INDEX "idx_user_id" ON "user" ("id");
-CREATE INDEX "idx_user_auth0_id" ON "user" ("auth0_id");
-CREATE INDEX "idx_user_last_active" ON "user" ("last_active");
-CREATE INDEX "idx_user_keys" ON "user" ("id", "auth0_id", "guest_id");
-CREATE INDEX "idx_auth0_id" ON "user" ("guest_id");
-
 CREATE INDEX "idx_quiz_game_id" ON "quiz_game" ("id");
 
 CREATE INDEX "idx_spin_game_id" ON "spin_game" ("id");
 
-CREATE INDEX "idx_spin_game_round_id" ON "spin_game_round" ("id");
-
 CREATE INDEX "idx_game_base_id" ON "game_base" ("id");
 CREATE INDEX "idx_game_base_game_type" ON "game_base" ("game_type");
 CREATE INDEX "idx_game_base_type_and_category" ON "game_base" ("game_type", "category");
-CREATE INDEX "idx_game_base" ON "game_base" ("game_type");
+
+CREATE INDEX "idx_user_id" ON "user" ("id");
+CREATE INDEX "idx_user_auth0_id" ON "user" ("auth0_id");
+CREATE INDEX "idx_user_last_active" ON "user" ("last_active");
+CREATE INDEX "idx_user_keys" ON "user" ("id", "auth0_id", "guest_id");
