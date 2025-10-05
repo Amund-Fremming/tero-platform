@@ -1,6 +1,7 @@
 use core::fmt;
 use std::hash::Hash;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,6 +9,18 @@ use crate::key_vault::models::JoinKeySet;
 
 pub trait GameConverter {
     fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error>;
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct GameBase {
+    pub id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub game_type: GameType,
+    pub category: GameCategory,
+    pub iterations: i32,
+    pub times_played: i32,
+    pub last_played: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, sqlx::Type)]
@@ -67,18 +80,7 @@ pub struct GamePageQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SavedGamePageQuery {
-    pub page_num: u16,
-    pub game_type: Option<GameType>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
-pub struct GameBase {
-    pub id: Uuid,
-    pub name: String,
-    pub description: Option<String>,
-    pub category: GameCategory,
-    pub iterations: i32,
-    pub times_played: i32,
+    pub page_num: u8,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -94,12 +96,4 @@ pub struct CreateGameRequest {
     pub name: String,
     pub description: Option<String>,
     pub category: Option<GameCategory>,
-}
-
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct SavedGame {
-    pub id: i64,
-    pub user_id: Uuid,
-    pub game_id: Uuid,
-    pub game_type: GameType,
 }

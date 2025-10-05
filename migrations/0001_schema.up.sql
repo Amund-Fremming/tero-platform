@@ -51,10 +51,11 @@ CREATE TYPE gender AS ENUM (
 );
 
 CREATE TABLE "saved_game" (
-    "id" BIGSERIAL PRIMARY KEY,
     "user_id" UUID NOT NULL,
+    "base_id" UUID NOT NULL,
     "game_id" UUID NOT NULL,
-    "game_type" game_type NOT NULL
+    "game_type" game_type NOT NULL,
+    PRIMARY KEY ("base_id", "game_id")
 );
 
 CREATE TABLE "system_log" (
@@ -96,30 +97,27 @@ CREATE TABLE "user" (
     "created_at" TIMESTAMPTZ
 );
 
-CREATE TABLE "quiz_game" (
+CREATE TABLE "game_base" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "name" VARCHAR(100) NOT NULL,
     "description" VARCHAR(150),
+    "game_type" game_type NOT NULL,
     "category" game_category NOT NULL DEFAULT 'casual',
     "iterations" INTEGER NOT NULL DEFAULT 0,
     "times_played" INTEGER NOT NULL DEFAULT 0,
+    "last_played" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE "quiz_game" (
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "base_id" UUID NOT NULL,
     "questions" TEXT[] NOT NULL
 );
 
 CREATE TABLE "spin_game" (
-    "id" UUID PRIMARY KEY,
-    "name" VARCHAR(100) NOT NULL,
-    "description" VARCHAR(150),
-    "category" game_category NOT NULL DEFAULT 'casual',
-    "iterations" INTEGER NOT NULL DEFAULT 0,
-    "times_played" INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE TABLE "spin_game_round" (
-    "id" UUID PRIMARY KEY,
-    "spin_game_id" UUID NOT NULL,
-    "participants" INTEGER NOT NULL DEFAULT 0,
-    "content" VARCHAR(200)
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "base_id" UUID NOT NULL,
+    "rounds" TEXT[] NOT NULL
 );
 
 ALTER TABLE "spin_game_round" ADD CONSTRAINT "spin_game_round_fk" FOREIGN KEY ("spin_game_id") REFERENCES "spin_game" ("id");
@@ -137,8 +135,12 @@ CREATE INDEX "idx_user_keys" ON "user" ("id", "auth0_id", "guest_id");
 CREATE INDEX "idx_auth0_id" ON "user" ("guest_id");
 
 CREATE INDEX "idx_quiz_game_id" ON "quiz_game" ("id");
-CREATE INDEX "idx_quiz_game_category" ON "quiz_game" ("category");
 
 CREATE INDEX "idx_spin_game_id" ON "spin_game" ("id");
-CREATE INDEX "idx_spin_game_category" ON "spin_game" ("category");
+
 CREATE INDEX "idx_spin_game_round_id" ON "spin_game_round" ("id");
+
+CREATE INDEX "idx_game_base_id" ON "game_base" ("id");
+CREATE INDEX "idx_game_base_game_type" ON "game_base" ("game_type");
+CREATE INDEX "idx_game_base_type_and_category" ON "game_base" ("game_type", "category");
+CREATE INDEX "idx_game_base" ON "game_base" ("game_type");

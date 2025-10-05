@@ -2,6 +2,8 @@
 
 ## Quick notes
 
+- Change guest_id to be the primary id, remove guest user lookup on eveyr guest user login or action
+
 - read before spin blir random, mindre for bruker å velge
 - Make read before spin, it makes it simpler for the user to create games, less friction
 - Persist game session needs to be protected. Make singalR hub a integration, validate M2M Token
@@ -99,7 +101,8 @@
 **Store games**
 - [x] Model relations table for a registered user to persist games they have played
 - [x] Endpoint for persisting a game
-- [ ] Endpoint for listing a game
+- [x] Endpoint for listing games
+- [ ] Endpoint for removing relation
 
 **System log**
 - [x] Enums for action and ceverity
@@ -126,3 +129,5 @@
 - [ ] Split migrations for better overview
 - [ ] Go over indexes and optimize
 - [ ] Create relations where possible
+- [ ] Cascades
+    - if a game is deleted, games and base and saved relations need to be deleted

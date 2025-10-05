@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
-    game::models::{GameBase, GamePageQuery, GameType, SavedGame, SavedGamePageQuery},
+    game::models::{GameBase, GamePageQuery, GameType, SavedGamePageQuery},
 };
 
 pub async fn get_game_page(
@@ -16,11 +16,19 @@ pub async fn get_game_page(
 ) -> Result<PagedResponse<GameBase>, sqlx::Error> {
     let mut sql = format!(
         r#"
-        SELECT id, name, description, category, iterations, times_played
-        FROM {}
+        SELECT
+            id,
+            name,
+            description,
+            game_type,
+            category,
+            iterations,
+            times_played,
+            last_played
+        FROM "game_base"
+        WHERE game_type = $1
         ORDER BY times_played DESC
-        "#,
-        game_type.to_string()
+        "#
     );
 
     let mut query = Vec::new();
@@ -35,7 +43,10 @@ pub async fn get_game_page(
     query.push(format!("LIMIT {} OFFSET {} ", limit, offset));
     sql.push_str(format!("WHERE {}", query.join(" AND ")).as_str());
 
-    let games = sqlx::query_as::<_, GameBase>(&sql).fetch_all(pool).await?;
+    let games = sqlx::query_as::<_, GameBase>(&sql)
+        .bind(&game_type)
+        .fetch_all(pool)
+        .await?;
 
     let has_next = games.len() < limit as usize;
     let page = PagedResponse::new(games, has_next);
@@ -94,20 +105,47 @@ pub async fn delete_game(
     Ok(())
 }
 
+// TODO - join task, async go faster
 pub async fn save_game(
     pool: &Pool<Postgres>,
     game_type: &GameType,
     user_id: Uuid,
-    game_id: Uuid,
+    base_id: Uuid,
 ) -> Result<(), ServerError> {
+    // get base
+
+    let base_id = sqlx::query_scalar::<_, Uuid>(
+        r#"
+        SELECT id
+        FROM "game_base"
+        WHERE id $1
+        "#,
+    )
+    .bind(&base_id)
+    .fetch_one(pool)
+    .await?;
+
+    let query = format!(
+        r#"
+        SELECT id
+        FROM {}
+        WHERE id = $1
+        "#,
+        game_type
+    );
+
+    let game_id = sqlx::query_scalar::<_, Uuid>(&query)
+        .fetch_one(pool)
+        .await?;
+
     let row = sqlx::query(
         r#"
-        INSERT INTO "saved_game" (id, user_id, game_id, game_type)
+        INSERT INTO "saved_game" (user_id, base_id, game_id, game_type)
         VALUES ($1, $2, $3, $4)
         "#,
     )
-    .bind(Uuid::new_v4())
     .bind(user_id)
+    .bind(base_id)
     .bind(game_id)
     .bind(game_type)
     .execute(pool)
@@ -126,7 +164,38 @@ pub async fn get_saved_games_page(
     pool: &Pool<Postgres>,
     user_id: Uuid,
     query: SavedGamePageQuery,
-) -> Result<PagedResponse<SavedGame>, ServerError> {
-    todo!();
-    Ok(PagedResponse::new(vec![], false))
+) -> Result<PagedResponse<GameBase>, ServerError> {
+    let page_size = CONFIG.server.page_size;
+    let limit = page_size + 1;
+    let offset = query.page_num * page_size;
+
+    let query = format!(
+        r#"
+        SELECT
+            base.id,
+            base.name,
+            base.description,
+            base.game_type,
+            base.category,
+            base.iterations,
+            base.times_played,
+            base.last_played
+        FROM "game_base" base
+        JOIN "saved_game" saved
+        ON base.id = saved.game_id
+        WHERE saved.user_id = $1
+        LIMIT {} OFFSET {}
+        "#,
+        limit, offset
+    );
+
+    let games = sqlx::query_as::<_, GameBase>(&query)
+        .bind(&user_id)
+        .fetch_all(pool)
+        .await?;
+
+    let has_next = games.len() < limit as usize;
+    let page = PagedResponse::new(games, has_next);
+
+    Ok(page)
 }

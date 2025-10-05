@@ -25,7 +25,7 @@ use crate::{
     },
     key_vault::models::{JoinKeySet, KEY_VAULT},
     quiz::{
-        db::{get_quiz_session_by_id, persist_quiz_session},
+        db::{get_quiz_session_by_id, tx_persist_quiz_session},
         models::QuizSession,
     },
     spin::{
@@ -122,7 +122,7 @@ async fn create_interactive_game(
 
     let payload = match game_type {
         GameType::Spin => {
-            let session = SpinSession::from_create_request(request, user_id);
+            let session = SpinSession::from_create_request(user_id, request);
             session.to_json_value()?
         }
         GameType::Quiz => {
@@ -216,6 +216,7 @@ async fn initiate_interactive_game(
     Ok((StatusCode::OK, Json(response)))
 }
 
+// TODO - add cache when it works and is teste
 async fn get_game_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -243,7 +244,8 @@ pub async fn persist_standalone_game(
     match request.game_type {
         GameType::Quiz => {
             let session: QuizSession = serde_json::from_value(request.payload)?;
-            persist_quiz_session(state.get_pool(), &session).await?;
+            let mut tx = state.get_pool().begin().await?;
+            tx_persist_quiz_session(&mut tx, &session).await?;
         }
         _ => {
             return Err(ServerError::Api(
@@ -277,7 +279,7 @@ async fn persist_interactive_game(
         GameType::Spin => {
             let session: SpinSession = serde_json::from_value(request.payload)?;
             match session.times_played {
-                0 => increment_times_played(pool, GameType::Spin, &session.id).await?,
+                0 => increment_times_played(pool, GameType::Spin, &session.base_id).await?,
                 _ => {
                     let mut tx = pool.begin().await?;
                     tx_persist_spin_session(&mut tx, &session).await?;
@@ -286,7 +288,7 @@ async fn persist_interactive_game(
         }
         GameType::Quiz => {
             let session: QuizSession = serde_json::from_value(request.payload)?;
-            increment_times_played(pool, GameType::Quiz, &session.id).await?;
+            increment_times_played(pool, GameType::Quiz, &session.quiz_id).await?;
         }
     }
 
@@ -314,14 +316,14 @@ async fn free_game_key(
 async fn save_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path((game_type, game_id)): Path<(GameType, Uuid)>,
+    Path((game_type, base_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Registered(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");
         return Err(ServerError::AccessDenied);
     };
 
-    db::save_game(state.get_pool(), &game_type, user_id, game_id).await?;
+    db::save_game(state.get_pool(), &game_type, user_id, base_id).await?;
     Ok(StatusCode::CREATED)
 }
 

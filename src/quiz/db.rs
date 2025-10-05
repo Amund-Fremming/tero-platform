@@ -1,59 +1,79 @@
-use sqlx::{Pool, Postgres};
-use tracing::error;
+use chrono::Utc;
+use sqlx::{Pool, Postgres, Transaction};
 use uuid::Uuid;
 
-use crate::{
-    common::error::ServerError,
-    quiz::models::{QuizGame, QuizSession},
-};
+use crate::{common::error::ServerError, quiz::models::QuizSession};
 
 pub async fn get_quiz_session_by_id(
     pool: &Pool<Postgres>,
-    quiz_id: &Uuid,
+    base_id: &Uuid,
 ) -> Result<QuizSession, ServerError> {
-    let quiz = sqlx::query_as::<_, QuizGame>(
+    let session = sqlx::query_as::<_, QuizSession>(
         r#"
-        SELECT id, name, description, category, iterations, times_played, questions
-        FROM "quiz_game"
-        WHERE id = $1
+        SELECT 
+            base.id AS base_id,
+            quiz.id AS quiz_id,
+            base.name,
+            base.description,
+            base.game_type,
+            base.category,
+            base.iterations,
+            base.times_played,
+            0 AS current_iteration,
+            quiz.questions
+        FROM "game_base" base
+        JOIN "quiz_game" quiz
+        ON base.id = quiz.base_id
+        WHERE base.id = $1
         "#,
     )
-    .bind(quiz_id)
+    .bind(base_id)
     .fetch_optional(pool)
     .await?
     .ok_or(ServerError::NotFound(format!(
         "Quiz with id {} does not exist",
-        quiz_id
+        base_id
     )))?;
 
-    let session = QuizSession::from_game(quiz);
     Ok(session)
 }
 
-pub async fn persist_quiz_session(
-    pool: &Pool<Postgres>,
+// TODO - join and do asycn
+pub async fn tx_persist_quiz_session(
+    tx: &mut Transaction<'_, Postgres>,
     session: &QuizSession,
 ) -> Result<(), ServerError> {
     let times_played = 1;
 
-    let row = sqlx::query(
+    let base_row = sqlx::query(
         r#"
-        INSERT INTO "quiz_game" (id, name, description, category, iterations, times_played, questions)
+        INSERT INTO "game_base" (id, name, description, category, iterations, times_played, last_played)
         VALUES ($1, $2, $3, $4, $5, $6, &7)
         "#
     )
-    .bind(&session.id)
+    .bind(&session.quiz_id)
     .bind(&session.name)
     .bind(&session.description)
     .bind(&session.category)
     .bind(session.iterations as i32)
     .bind(&times_played)
-    .bind(&session.questions)
-    .execute(pool)
+    .bind(Utc::now())
+    .execute(&mut **tx)
     .await?;
 
-    if row.rows_affected() == 0 {
-        error!("Failed to persist quiz session");
+    let quiz_row = sqlx::query(
+        r#"
+        INSERT INTO "quiz_game" (id, base_id, questions)
+        VALUES ($1. $2, $3)
+        "#,
+    )
+    .bind(&session.base_id)
+    .bind(&session.quiz_id)
+    .bind(&session.questions)
+    .execute(&mut **tx)
+    .await?;
+
+    if base_row.rows_affected() == 0 || quiz_row.rows_affected() == 0 {
         return Err(ServerError::Internal(
             "Failed to persist quiz session".into(),
         ));

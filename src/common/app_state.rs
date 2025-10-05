@@ -76,6 +76,10 @@ impl AppState {
         &self.jwks
     }
 
+    pub fn get_cache(&self) -> &Arc<GustCache<Vec<PagedResponse<GameBase>>>> {
+        &self.page_cache
+    }
+
     pub fn get_client(&self) -> &Client {
         &self.client
     }
