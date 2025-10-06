@@ -51,6 +51,8 @@
 - [x] Create guest user
 - [x] Is valid token endpoint (also serves as user sync)
 - [x] User sync
+- [ ] Change webhook to use event streams from auth0
+- [ ] Handle all user events
 - [ ] Expand refresh token / jwt to be longer than an hour
 
 **M2M GameSession**
@@ -90,7 +92,7 @@
 - [x] Setup index and tables
 - [x] Setup db handlers
 - [x] Implement core
-- [x] strategy for removing no longer used slugs
+- [x] Strategy for removing no longer used slugs
 - [ ] Strategy for cron job, could be errors that make keys stay forever
 
 **Admin**
@@ -102,7 +104,7 @@
 - [x] Model relations table for a registered user to persist games they have played
 - [x] Endpoint for persisting a game
 - [x] Endpoint for listing games
-- [ ] Endpoint for removing relation
+- [x] Endpoint for removing relation
 
 **System log**
 - [x] Enums for action and ceverity

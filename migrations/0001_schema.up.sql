@@ -51,11 +51,12 @@ CREATE TYPE gender AS ENUM (
 );
 
 CREATE TABLE "saved_game" (
+    "id" UUID PRIMARY KEY,
     "user_id" UUID NOT NULL,
     "base_id" UUID NOT NULL,
     "game_id" UUID NOT NULL,
     "game_type" game_type NOT NULL,
-    PRIMARY KEY ("base_id", "game_id")
+    UNIQUE ("base_id", "game_id")
 );
 
 CREATE TABLE "system_log" (
@@ -120,7 +121,8 @@ CREATE TABLE "spin_game" (
     "rounds" TEXT[] NOT NULL
 );
 
-CREATE INDEX "idx_saved_game_id" ON "saved_game" ("base_id", "game_id");
+CREATE INDEX "idx_saved_game_id" ON "saved_game" ("id");
+CREATE INDEX "idx_saved_game_delete_keys" ON "saved_game" ("id", "user_id");
 
 CREATE INDEX "idx_join_key_id" ON "join_key" ("id");
 

@@ -4,7 +4,7 @@ use axum::{
     Extension, Json, Router,
     extract::{Path, Query, State},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, patch, post},
 };
 use reqwest::StatusCode;
 use uuid::Uuid;
@@ -38,9 +38,10 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
     let generic_routes = Router::new()
         .route("/{game_type}/page", post(get_game_page))
         .route("/{game_type}/create", post(create_interactive_game))
-        .route("/{game_type}/{game_id}", post(delete_game))
-        .route("/{game_type}/free-key", post(free_game_key))
+        .route("/{game_type}/{game_id}", delete(delete_game))
+        .route("/{game_type}/free-key", patch(free_game_key))
         .route("/{game_type}/save/{game_id}", post(save_game))
+        .route("/{game_type}/unsave/{game_id}", delete(delete_saved_game))
         .route("/saved", get(get_saved_games_page))
         .with_state(state.clone());
 
@@ -330,10 +331,15 @@ async fn save_game(
 async fn delete_saved_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path((base_id, game_id)): Path<(Uuid, Uuid)>,
+    Path((game_type, saved_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
-    todo!();
-    Ok(())
+    let SubjectId::Registered(user_id) = subject_id else {
+        error!("Unregistered user or integration tried saving a game");
+        return Err(ServerError::AccessDenied);
+    };
+
+    db::delete_saved_game(state.get_pool(), &game_type, user_id, saved_id).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn get_saved_games_page(

@@ -4,7 +4,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
-    common::{error::ServerError, models::PagedResponse},
+    common::{db_query_builder::DBQueryBuilder, error::ServerError, models::PagedResponse},
     config::config::CONFIG,
     game::models::{GameBase, GamePageQuery, GameType, SavedGamePageQuery},
 };
@@ -112,8 +112,6 @@ pub async fn save_game(
     user_id: Uuid,
     base_id: Uuid,
 ) -> Result<(), ServerError> {
-    // get base
-
     let base_id = sqlx::query_scalar::<_, Uuid>(
         r#"
         SELECT id
@@ -154,6 +152,35 @@ pub async fn save_game(
     if row.rows_affected() == 0 {
         return Err(ServerError::Internal(
             "Failed to insert to table `saved_game`".into(),
+        ));
+    }
+
+    Ok(())
+}
+
+pub async fn delete_saved_game(
+    pool: &Pool<Postgres>,
+    game_type: &GameType,
+    user_id: Uuid,
+    saved_id: Uuid,
+) -> Result<(), ServerError> {
+    let query = format!(
+        r#"
+        DELETE FROM {}
+        WHERE user_id = $1 AND id = $2
+        "#,
+        game_type
+    );
+
+    let row = sqlx::query(&query)
+        .bind(&user_id)
+        .bind(&saved_id)
+        .execute(pool)
+        .await?;
+
+    if row.rows_affected() == 0 {
+        return Err(ServerError::Internal(
+            "Failed to delete from table `saved_game`".into(),
         ));
     }
 

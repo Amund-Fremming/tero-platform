@@ -23,14 +23,14 @@ pub struct Integration {
 #[sqlx(type_name = "integration_name", rename_all = "lowercase")]
 pub enum IntegrationName {
     Auth0,
-    Session,
+    GameSession,
 }
 
 impl fmt::Display for IntegrationName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             IntegrationName::Auth0 => write!(f, "auth0"),
-            IntegrationName::Session => write!(f, "session"),
+            IntegrationName::GameSession => write!(f, "game_session"),
         }
     }
 }
