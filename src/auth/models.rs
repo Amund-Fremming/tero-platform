@@ -20,28 +20,38 @@ pub enum Permission {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    aud: Vec<String>,
+    gty: String,
+    aud: String,
     azp: String,
     exp: i32,
     iat: i32,
     iss: String,
     pub scope: String,
     pub sub: String,
-    pub permissions: HashSet<Permission>,
+    pub permissions: Option<HashSet<Permission>>,
 }
 
 impl Claims {
     pub fn empty() -> Self {
         Self {
-            aud: vec![],
+            gty: String::new(),
+            aud: String::new(),
             azp: String::new(),
             exp: 0,
             iat: 0,
             iss: String::new(),
             scope: String::new(),
             sub: String::from("guest"),
-            permissions: HashSet::new(),
+            permissions: None,
         }
+    }
+
+    pub fn is_machine(&self) -> bool {
+        self.gty == "client-credentials"
+    }
+
+    pub fn auth0_id(&self) -> &str {
+        &self.sub
     }
 
     pub fn missing_permission<I>(&self, required: I) -> Option<HashSet<Permission>>
@@ -49,9 +59,9 @@ impl Claims {
         I: IntoIterator<Item = Permission>,
     {
         let required_iter = required.into_iter();
-        let permissions = match self.permissions.is_empty() {
-            true => return Some(required_iter.collect()),
-            false => self.permissions.clone(),
+        let permissions = match &self.permissions {
+            None => return Some(required_iter.collect()),
+            Some(perm) => perm,
         };
 
         let missing: HashSet<Permission> =

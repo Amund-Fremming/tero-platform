@@ -3,6 +3,8 @@
 ## Quick notes
 
 - Change guest_id to be the primary id, remove guest user lookup on eveyr guest user login or action
+    - needs new sync logic 
+    - cannot do checks on guest id and otken longer since a m2m does not have guest id present
 
 - read before spin blir random, mindre for bruker å velge
 - Make read before spin, it makes it simpler for the user to create games, less friction
@@ -56,7 +58,7 @@
 - [ ] Expand refresh token / jwt to be longer than an hour
 
 **M2M GameSession**
-- [ ] Create M2M support for gamesession
+- [x] Create M2M support for gamesession
 - [ ] Support new Subject Integration
 - [ ] Create auth0 cached client for getting token from c#
 - [ ] Create and give out permissions

@@ -32,17 +32,10 @@ pub async fn auth_mw(
     mut req: Request<Body>,
     next: Next,
 ) -> Result<Response, ServerError> {
-    let guest_header = extract_header(AUTHORIZATION.as_str(), req.headers());
-    let token_header = extract_header(GUEST_AUTHORIZATION, req.headers());
+    let guest_header = extract_header(GUEST_AUTHORIZATION, req.headers());
+    let token_header = extract_header(AUTHORIZATION.as_str(), req.headers());
 
     match (guest_header, token_header) {
-        (None, None) => {
-            error!("Missing authentication method");
-            return Err(ServerError::Api(
-                StatusCode::UNAUTHORIZED,
-                "Missing authorization header".into(),
-            ));
-        }
         (None, Some(token_header)) => {
             let error_msg = format!(
                 "Token header is present but guest header is missing for user: {}",
@@ -66,7 +59,14 @@ pub async fn auth_mw(
             handle_guest_user(state.get_pool(), &mut req, &guest_header).await?;
         }
         (Some(guest_header), Some(token_header)) => {
-            handle_token_user(state.clone(), &mut req, &token_header, &guest_header).await?;
+            handle_token(state.clone(), &mut req, &token_header, &guest_header).await?;
+        }
+        (None, None) => {
+            error!("Missing authentication method");
+            return Err(ServerError::Api(
+                StatusCode::UNAUTHORIZED,
+                "Missing authorization header".into(),
+            ));
         }
     };
 
@@ -96,7 +96,7 @@ async fn handle_guest_user(
     Ok(())
 }
 
-async fn handle_token_user(
+async fn handle_token(
     state: Arc<AppState>,
     request: &mut Request<Body>,
     token_header: &str,
@@ -112,9 +112,13 @@ async fn handle_token_user(
     let token_data = verify_jwt(token, state.get_jwks()).await?;
     let claims: Claims = serde_json::from_value(token_data.claims)?;
 
-    let auth0_id = claims.sub.clone();
+    if claims.is_machine() {
+        // Handle machine subject
+        todo!();
+    }
+
     let guest_id = to_uuid(guest_header)?;
-    let user_keys = get_user_keys_from_auth0_id(state.get_pool(), &auth0_id).await?;
+    let user_keys = get_user_keys_from_auth0_id(state.get_pool(), claims.auth0_id()).await?;
 
     if Some(guest_id) != user_keys.guest_id {
         info!("Starting user sync for user id: {}", user_keys.user_id);
