@@ -10,7 +10,7 @@ struct JoinKey {
     pub word: String,
 }
 
-pub async fn get_word_set(pool: &Pool<Postgres>, keys: &[&str; 2]) -> Result<String, ServerError> {
+pub async fn get_word_set(pool: &Pool<Postgres>, ids: &[&str; 2]) -> Result<String, ServerError> {
     let keys = sqlx::query_as::<_, JoinKey>(
         r#"
         SELECT id, word
@@ -19,7 +19,7 @@ pub async fn get_word_set(pool: &Pool<Postgres>, keys: &[&str; 2]) -> Result<Str
         LIMIT 2
         "#,
     )
-    .bind(keys)
+    .bind(ids)
     .fetch_all(pool)
     .await?;
 

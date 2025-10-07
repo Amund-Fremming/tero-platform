@@ -2,6 +2,8 @@
 
 ## Quick notes
 
+- keyvault randomnesss can cause some bottleneck when trying to find a ranodm, it needs to only get random from the keeys not in use, not try to get all random
+
 - read before spin blir random, mindre for bruker å velge
 - Make read before spin, it makes it simpler for the user to create games, less friction
 - Persist game session needs to be protected. Make singalR hub a integration, validate M2M Token

@@ -12,10 +12,12 @@ pub async fn get_system_log_page(
     pool: &Pool<Postgres>,
     request: SyslogPageQuery,
 ) -> Result<PagedResponse<SystemLog>, sqlx::Error> {
-    let page_size = CONFIG.server.page_size as u16;
-    let query = DBQueryBuilder::new()
-        .select(
-            r#"
+    todo!();
+    /*
+       let page_size = CONFIG.server.page_size as u16;
+       let query = DBQueryBuilder::new()
+           .select(
+               r#"
             id,
             subject_id,
             subject_type,
@@ -25,24 +27,25 @@ pub async fn get_system_log_page(
             description,
             metadata
         "#,
-        )
-        .from("system_log")
-        .where_opt(request.subject_type)
-        .where_opt(request.action)
-        .where_opt(request.ceverity)
-        .offset(page_size * request.page_num)
-        .limit(page_size + 1)
-        .order_desc("created_at")
-        .build();
+           )
+           .from("system_log")
+           .where_opt(request.subject_type)
+           .where_opt(request.action)
+           .where_opt(request.ceverity)
+           .offset(page_size * request.page_num)
+           .limit(page_size + 1)
+           .order_desc("created_at")
+           .build();
 
-    let logs = sqlx::query_as::<_, SystemLog>(&query)
-        .fetch_all(pool)
-        .await?;
+       let logs = sqlx::query_as::<_, SystemLog>(&query)
+           .fetch_all(pool)
+           .await?;
 
-    let has_next = logs.len() < (page_size + 1) as usize;
-    let page = PagedResponse::new(logs, has_next);
+       let has_next = logs.len() < (page_size + 1) as usize;
+       let page = PagedResponse::new(logs, has_next);
 
-    Ok(page)
+       Ok(page)
+    */
 }
 
 pub async fn create_system_log(

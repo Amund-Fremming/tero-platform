@@ -29,6 +29,8 @@ pub async fn get_game_page(
     game_type: GameType,
     request: GamePageQuery,
 ) -> Result<PagedResponse<GameBase>, sqlx::Error> {
+    todo!();
+    /*
     let page_size = CONFIG.server.page_size as u16;
 
     let query = DBQueryBuilder::new()
@@ -61,6 +63,7 @@ pub async fn get_game_page(
     let page = PagedResponse::new(games, has_next);
 
     Ok(page)
+    */
 }
 
 pub async fn increment_times_played(

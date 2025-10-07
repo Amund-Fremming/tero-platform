@@ -33,6 +33,7 @@ mod mw;
 mod quiz;
 mod spin;
 mod system_log;
+mod tests;
 
 #[tokio::main]
 async fn main() {
