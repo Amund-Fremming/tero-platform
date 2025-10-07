@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
+use serde_json::json;
 use tracing::{error, info};
 
 use gustcache::GustCache;
@@ -13,7 +14,7 @@ use crate::{
     client::gs_client::GSClient,
     common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
-    game::models::GameBase,
+    game::{db::delete_non_active_games, models::GameBase},
     system_log::{
         builder::SystemLogBuilder,
         models::{Action, LogCeverity},
@@ -88,8 +89,27 @@ impl AppState {
         &self.gs_client
     }
 
-    pub fn audit(&self) -> SystemLogBuilder {
+    pub fn syslog(&self) -> SystemLogBuilder {
         SystemLogBuilder::new(self.get_pool())
+    }
+
+    pub fn spawn_game_cleanup(&self) {
+        let state = self.clone();
+        let mut interval = tokio::time::interval(Duration::from_secs(86_400));
+        tokio::spawn(async move {
+            loop {
+                interval.tick().await;
+                if let Err(e) = delete_non_active_games(state.get_pool()).await {
+                    state
+                        .syslog()
+                        .action(Action::Delete)
+                        .ceverity(LogCeverity::Info)
+                        .description("Failed to purge inactive games")
+                        .metadata(json!({"error": e.to_string()}))
+                        .log();
+                }
+            }
+        });
     }
 
     pub fn sync_user(&self, user_id: Uuid, guest_id: Uuid) {
@@ -99,7 +119,7 @@ impl AppState {
             let Ok(mut tx) = state.get_pool().begin().await else {
                 error!("Failed to start database transaction");
                 state
-                    .audit()
+                    .syslog()
                     .action(Action::Other)
                     .ceverity(LogCeverity::Critical)
                     .description("Failed to start database transaction")
@@ -115,7 +135,7 @@ impl AppState {
                     user_id, guest_id
                 );
                 state
-                    .audit()
+                    .syslog()
                     .action(Action::Sync)
                     .ceverity(LogCeverity::Critical)
                     .description(&msg)

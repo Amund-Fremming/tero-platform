@@ -50,6 +50,9 @@ async fn main() {
         .await
         .unwrap_or_else(|e| panic!("{}", e));
 
+    // Spawn cron jobs
+    state.spawn_game_cleanup();
+
     // Initiate integrations
     if let Err(e) = load_integrations(state.get_pool()).await {
         error!("{}", e);

@@ -57,7 +57,7 @@ async fn get_user_from_subject(
     let Some(mut user) = db::get_user_by_id(state.get_pool(), &user_id).await? else {
         error!("Unexpected: user id was previously fetched but is now missing.");
         state
-            .audit()
+            .syslog()
             .subject(subject_id)
             .action(Action::Read)
             .ceverity(LogCeverity::Critical)

@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use sqlx::{Pool, Postgres};
 use tracing::warn;
 use uuid::Uuid;
@@ -8,6 +8,21 @@ use crate::{
     config::config::CONFIG,
     game::models::{GameBase, GamePageQuery, GameType, SavedGamePageQuery},
 };
+
+pub async fn delete_non_active_games(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
+    let timeout = Utc::now() - Duration::days(24);
+    sqlx::query(
+        r#"
+        DELETE FROM "game_base"
+        WHERE last_played < $1
+        "#,
+    )
+    .bind(timeout)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
 
 pub async fn get_game_page(
     pool: &Pool<Postgres>,

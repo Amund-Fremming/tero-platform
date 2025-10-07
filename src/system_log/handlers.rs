@@ -65,7 +65,7 @@ async fn create_system_log(
         }
     };
 
-    let mut builder = state.audit().subject(subject_id);
+    let mut builder = state.syslog().subject(subject_id);
 
     if let Some(action) = request.action {
         builder = builder.action(action);
