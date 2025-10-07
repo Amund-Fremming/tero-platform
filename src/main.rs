@@ -64,7 +64,7 @@ async fn main() {
 
     let public_routes = Router::new()
         .nest("/health", health_routes(state.clone()))
-        .nest("/guest-user", public_auth_routes(state.clone()))
+        .nest("/guest", public_auth_routes(state.clone()))
         .nest("/log", log_routes(state.clone()));
 
     let protected_routes = Router::new()

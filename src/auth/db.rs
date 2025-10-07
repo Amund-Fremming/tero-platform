@@ -1,5 +1,5 @@
 use chrono::Utc;
-use sqlx::{Pool, Postgres, Row, Transaction, query, query_as};
+use sqlx::{Pool, Postgres, QueryBuilder, Row, Transaction, query, query_as};
 use tracing::{error, warn};
 use uuid::Uuid;
 
@@ -98,6 +98,15 @@ pub async fn get_user_by_id(
         .await
 }
 
+pub async fn guest_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, sqlx::Error> {
+    let exists = sqlx::query_scalar::<_, Uuid>("SELECT guest_id FROM \"user\" WHERE guest_id = $1")
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+
+    Ok(exists.is_some())
+}
+
 pub async fn create_guest_user(pool: &Pool<Postgres>) -> Result<Uuid, sqlx::Error> {
     let row = sqlx::query(
         r#"
@@ -153,7 +162,7 @@ pub async fn update_user_activity(pool: &Pool<Postgres>, user_id: Uuid) -> Resul
     let row = sqlx::query(
         r#"
         UPDATE "user"
-        SET last_updated = $1
+        SET last_active = $1
         WHERE id = $2
         "#,
     )
@@ -170,31 +179,30 @@ pub async fn update_user_activity(pool: &Pool<Postgres>, user_id: Uuid) -> Resul
     Ok(())
 }
 
-// TODO - unsafe inserts
 pub async fn patch_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,
     put_request: PutUserRequest,
 ) -> Result<(), ServerError> {
-    let mut query: String = String::from("UPDATE user SET");
-    let mut conditions: Vec<String> = Vec::new();
+    let mut builder: QueryBuilder<'_, Postgres> = sqlx::QueryBuilder::new("UPDATE user SET ");
+    let mut separator = builder.separated(", ");
 
     if let Some(name) = put_request.name {
-        conditions.push(format!("name = {}", name));
+        separator.push_unseparated("name = ").push_bind(name);
     }
 
     if let Some(email) = put_request.email {
-        conditions.push(format!("email = {}", email));
+        separator.push_unseparated("email = ").push_bind(email);
     }
 
     if let Some(birth_date) = put_request.birth_date {
-        conditions.push(format!("birth_date = {}", birth_date));
+        separator
+            .push_unseparated("birth_date = ")
+            .push_bind(birth_date);
     }
 
-    query.push_str(conditions.join(", ").as_str());
-    query.push_str(format!("WHERE id = {}", user_id).as_str());
-
-    let result = sqlx::query(&query).execute(pool).await?;
+    builder.push(" WHERE user_id = ").push_bind(user_id);
+    let result = builder.build().execute(pool).await?;
 
     if result.rows_affected() == 0 {
         warn!("Query failed, no user with id: {}", user_id);
@@ -228,17 +236,8 @@ pub async fn list_all_users(pool: &Pool<Postgres>) -> Result<Vec<User>, sqlx::Er
         .await
 }
 
-// TODO - maybe use more tasks to optimize
 pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivityStats, sqlx::Error> {
-    let total_game_count: i32 = sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM games")
-        .fetch_one(pool)
-        .await?;
-
-    let total_user_count: i32 = sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM user")
-        .fetch_one(pool)
-        .await?;
-
-    let recent = sqlx::query_as::<_, RecentUserStats>(
+    let recent_fut = sqlx::query_as::<_, RecentUserStats>(
         r#"
         SELECT
             COUNT(*) FILTER (WHERE created_at >= date_trunc('month', CURRENT_DATE)) AS this_month_users,
@@ -247,10 +246,9 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
         FROM users
         "#
     )
-    .fetch_one(pool)
-    .await?;
+    .fetch_one(pool);
 
-    let average = sqlx::query_as::<_, AverageUserStats>(
+    let average_fut = sqlx::query_as::<_, AverageUserStats>(
         r#"
         SELECT
             (SELECT AVG(cnt) FROM (SELECT COUNT(*) AS cnt FROM users GROUP BY date_trunc('month', created_at)) t) AS avg_month_users,
@@ -258,13 +256,30 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
             (SELECT AVG(cnt) FROM (SELECT COUNT(*) AS cnt FROM users GROUP BY created_at) t) AS avg_daily_users
         "#
     )
-    .fetch_one(pool)
-    .await?;
+    .fetch_one(pool);
+
+    let total_game_count_fut =
+        sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM games").fetch_one(pool);
+
+    let total_user_count_fut =
+        sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM user").fetch_one(pool);
+
+    let (recent, average, total_game_count, total_user_count): (
+        Result<RecentUserStats, sqlx::Error>,
+        Result<AverageUserStats, sqlx::Error>,
+        Result<i32, sqlx::Error>,
+        Result<i32, sqlx::Error>,
+    ) = tokio::join!(
+        recent_fut,
+        average_fut,
+        total_game_count_fut,
+        total_user_count_fut
+    );
 
     Ok(ActivityStats {
-        total_game_count,
-        total_user_count,
-        recent,
-        average,
+        total_game_count: total_game_count?,
+        total_user_count: total_user_count?,
+        recent: recent?,
+        average: average?,
     })
 }

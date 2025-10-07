@@ -98,14 +98,13 @@ pub async fn delete_game(
     Ok(())
 }
 
-// TODO - join task, async go faster
 pub async fn save_game(
     pool: &Pool<Postgres>,
     game_type: &GameType,
     user_id: Uuid,
     base_id: Uuid,
 ) -> Result<(), ServerError> {
-    let base_id = sqlx::query_scalar::<_, Uuid>(
+    let base_id_fut = sqlx::query_scalar::<_, Uuid>(
         r#"
         SELECT id
         FROM "game_base"
@@ -113,8 +112,7 @@ pub async fn save_game(
         "#,
     )
     .bind(&base_id)
-    .fetch_one(pool)
-    .await?;
+    .fetch_one(pool);
 
     let query = format!(
         r#"
@@ -125,9 +123,10 @@ pub async fn save_game(
         game_type
     );
 
-    let game_id = sqlx::query_scalar::<_, Uuid>(&query)
-        .fetch_one(pool)
-        .await?;
+    let game_id_fut = sqlx::query_scalar::<_, Uuid>(&query).fetch_one(pool);
+
+    let (base_id, game_id): (Result<Uuid, sqlx::Error>, Result<Uuid, sqlx::Error>) =
+        tokio::join!(base_id_fut, game_id_fut);
 
     let row = sqlx::query(
         r#"
@@ -136,8 +135,8 @@ pub async fn save_game(
         "#,
     )
     .bind(user_id)
-    .bind(base_id)
-    .bind(game_id)
+    .bind(base_id?)
+    .bind(game_id?)
     .bind(game_type)
     .execute(pool)
     .await?;

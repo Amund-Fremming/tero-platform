@@ -6,6 +6,11 @@ use uuid::Uuid;
 
 use crate::{game::models::Gender, integration::models::IntegrationName};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EnsureGuestQuery {
+    pub guest_id: Option<Uuid>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, Clone)]
 pub enum Permission {
     #[serde(rename(deserialize = "read:admin"))]

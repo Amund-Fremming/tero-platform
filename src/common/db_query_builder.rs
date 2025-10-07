@@ -1,98 +1,86 @@
 use core::fmt;
 use tracing::debug;
 
-#[allow(dead_code)]
 pub struct DBQueryBuilder {
-    pub base: String,
+    pub query: String,
     pub filters: Vec<String>,
-    pub updates: Vec<String>,
-    pub limit: Option<String>,
-    pub offset: Option<String>,
-    pub order_by: Option<String>,
+    pub filters_added: bool,
 }
 
 #[allow(dead_code, unused_variables)]
 impl DBQueryBuilder {
     pub fn new() -> Self {
         Self {
-            base: String::new(),
+            query: String::new(),
             filters: Vec::new(),
-            updates: Vec::new(),
-            limit: None,
-            offset: None,
-            order_by: None,
+            filters_added: false,
         }
     }
 
     pub fn select(mut self, base: &str) -> Self {
-        self.base.push_str(&base);
-        self
-    }
-
-    pub fn update<T>(mut self, table: T) -> Self
-    where
-        T: fmt::Display,
-    {
-        self.base.push_str(&format!("UPDATE {}", table.to_string()));
+        self.query.push_str(&base);
         self
     }
 
     pub fn from(mut self, table: &str) -> Self {
-        self.base.push_str(&format!("\nFROM \"{}\"", table));
+        self.query.push_str(&format!("\nFROM \"{}\"", table));
         self
     }
 
-    pub fn where_some(mut self, condition: &str) -> Self {
-        self.filters.push(condition.to_string());
+    pub fn r#where(mut self, field: &str, value: &str) -> Self {
+        self.filters.push(format!("{} = '{}'", field, value));
         self
     }
 
-    pub fn where_opt<T>(mut self, condition: Option<T>) -> Self
+    pub fn where_opt<T>(mut self, field: &str, value: Option<T>) -> Self
     where
         T: fmt::Display,
     {
-        if let Some(value) = condition {
-            self.filters.push(value.to_string());
+        if let Some(value) = value {
+            self.filters.push(format!("{} = {}", field, value));
         }
 
         self
     }
 
-    pub fn order_asc(self, by: &str) -> Self {
+    pub fn order_asc(mut self, field: &str) -> Self {
+        self.ensure_filters();
+        self.query.push_str(&format!("\nORDER BY {} ASC", field));
         self
     }
 
-    pub fn order_desc(self, by: &str) -> Self {
+    pub fn order_desc(mut self, field: &str) -> Self {
+        self.ensure_filters();
+        self.query.push_str(&format!("\nORDER BY {} DESC", field));
         self
     }
 
-    pub fn limit(mut self, limit: u16) -> Self {
-        self.limit = Some(format!("LIMIT {} ", limit));
+    pub fn limit(mut self, limit: impl Into<usize>) -> Self {
+        self.ensure_filters();
+        let limit = limit.into();
+        self.query.push_str(&format!("\nLIMIT {}", limit));
         self
     }
 
     pub fn offset(mut self, offset: u16) -> Self {
-        self.offset = Some(format!("OFFSET {} ", offset));
+        self.ensure_filters();
+        self.query.push_str(&format!("\nOFFSET {} ", offset));
         self
     }
 
+    fn ensure_filters(&mut self) {
+        if self.filters.is_empty() || self.filters_added {
+            return;
+        };
+
+        self.query
+            .push_str(&format!("\nWHERE {}", self.filters.join(" AND ")));
+
+        self.filters_added = true;
+    }
+
     pub fn build(self) -> String {
-        let select = self.base;
-        let filters = self.filters.join(" AND ");
-        let limit = self.limit.unwrap_or("".into());
-        let offset = self.offset.unwrap_or("".into());
-        let order_by = self.order_by.unwrap_or("".into());
-
-        let query = format!(
-            r#"
-            {select}
-            WHERE {filters}
-            {limit}
-            {offset}
-            "#,
-        );
-
-        debug!("Executing query: \n {}", query);
-        query
+        debug!("Executing query: \n {}", self.query);
+        self.query
     }
 }

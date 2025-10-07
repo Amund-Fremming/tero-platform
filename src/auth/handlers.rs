@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Extension, Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch, post, put},
@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::{
     auth::{
         db::{self},
-        models::{Auth0User, Claims, Permission, PutUserRequest, SubjectId},
+        models::{Auth0User, Claims, EnsureGuestQuery, Permission, PutUserRequest, SubjectId},
     },
     common::{app_state::AppState, error::ServerError},
     system_log::models::{Action, LogCeverity, SubjectType},
@@ -21,7 +21,7 @@ use crate::{
 
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/", post(create_guest_user))
+        .route("/ensure", post(ensure_guest_user))
         .with_state(state)
 }
 
@@ -87,10 +87,22 @@ async fn validate_token(
     Ok((StatusCode::OK, Json(valid_type)))
 }
 
-async fn create_guest_user(
+async fn ensure_guest_user(
     State(state): State<Arc<AppState>>,
+    Query(query): Query<EnsureGuestQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let guest_id = db::create_guest_user(state.get_pool()).await?;
+    let guest_id = match query.guest_id {
+        None => db::create_guest_user(state.get_pool()).await?,
+        Some(mut guest_id) => {
+            let exists = db::guest_user_exists(state.get_pool(), guest_id).await?;
+            if !exists {
+                guest_id = db::create_guest_user(state.get_pool()).await?;
+            }
+
+            guest_id
+        }
+    };
+
     Ok((StatusCode::CREATED, Json(guest_id)))
 }
 
@@ -112,6 +124,12 @@ async fn patch_user(
 
     if actual_user_id != user_id {
         return Err(ServerError::AccessDenied);
+    }
+
+    if put_request.name.is_none() && put_request.email.is_none() && put_request.birth_date.is_none()
+    {
+        info!("User tried patching without a payload");
+        return Ok(StatusCode::OK);
     }
 
     db::patch_user_by_id(state.get_pool(), &actual_user_id, put_request).await?;
