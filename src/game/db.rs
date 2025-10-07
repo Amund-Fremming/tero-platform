@@ -14,9 +14,11 @@ pub async fn get_game_page(
     game_type: GameType,
     request: GamePageQuery,
 ) -> Result<PagedResponse<GameBase>, sqlx::Error> {
-    let mut sql = format!(
-        r#"
-        SELECT
+    let page_size = CONFIG.server.page_size as u16;
+
+    let query = DBQueryBuilder::new()
+        .select(
+            r#"
             id,
             name,
             description,
@@ -25,30 +27,22 @@ pub async fn get_game_page(
             iterations,
             times_played,
             last_played
-        FROM "game_base"
-        WHERE game_type = $1
-        ORDER BY times_played DESC
-        "#
-    );
+            "#,
+        )
+        .from("game_base")
+        .where_some("game_type = $1")
+        .where_opt(request.category)
+        .offset(page_size * request.page_num)
+        .limit(page_size + 1)
+        .order_desc("times_played")
+        .build();
 
-    let mut query = Vec::new();
-    let page_size = CONFIG.server.page_size as u16;
-    let offset = page_size * request.page_num;
-    let limit = page_size + 1;
-
-    if let Some(category) = &request.category {
-        query.push(format!(" category = '{}'", category.as_str()));
-    };
-
-    query.push(format!("LIMIT {} OFFSET {} ", limit, offset));
-    sql.push_str(format!("WHERE {}", query.join(" AND ")).as_str());
-
-    let games = sqlx::query_as::<_, GameBase>(&sql)
+    let games = sqlx::query_as::<_, GameBase>(&query)
         .bind(&game_type)
         .fetch_all(pool)
         .await?;
 
-    let has_next = games.len() < limit as usize;
+    let has_next = games.len() < (page_size + 1) as usize;
     let page = PagedResponse::new(games, has_next);
 
     Ok(page)
@@ -96,7 +90,6 @@ pub async fn delete_game(
     );
 
     let row = sqlx::query(&query).bind(id).execute(pool).await?;
-
     if row.rows_affected() == 0 {
         warn!("Query failed, no game with id: {}", id);
         return Err(ServerError::Internal("Failed to delete game".into()));

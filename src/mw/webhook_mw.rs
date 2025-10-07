@@ -7,8 +7,10 @@ use crate::{
     integration::models::IntegrationName, mw::common::extract_header,
 };
 
+#[allow(dead_code, unused_variables)]
 static AUTH0_WEBHOOK_KEY: &str = "Auth0-Webhook-Key";
 
+#[allow(dead_code, unused_variables)]
 pub async fn webhook_mw(mut req: Request<Body>, next: Next) -> Result<Response, ServerError> {
     let webhook_header = extract_header(&AUTH0_WEBHOOK_KEY, req.headers()).ok_or_else(|| {
         ServerError::Api(StatusCode::UNAUTHORIZED, "Webhook key not present".into())

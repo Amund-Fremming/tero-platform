@@ -170,6 +170,7 @@ pub async fn update_user_activity(pool: &Pool<Postgres>, user_id: Uuid) -> Resul
     Ok(())
 }
 
+// TODO - unsafe inserts
 pub async fn patch_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,

@@ -2,56 +2,44 @@ use chrono::Utc;
 use sqlx::{Pool, Postgres};
 
 use crate::{
-    common::{error::ServerError, models::PagedResponse},
+    common::{db_query_builder::DBQueryBuilder, error::ServerError, models::PagedResponse},
     config::config::CONFIG,
     system_log::models::{Action, LogCeverity, SubjectType, SyslogPageQuery, SystemLog},
 };
 
+// OK without interpolation. Only available for admins
 pub async fn get_system_log_page(
     pool: &Pool<Postgres>,
     request: SyslogPageQuery,
 ) -> Result<PagedResponse<SystemLog>, sqlx::Error> {
-    let mut query = format!(
-        r#"
-        SELECT id, subject_id, subject_type, action, ceverity, function, description, metadata
-        FROM "system_log"
-        "#
-    );
-
-    let mut conditions = Vec::new();
-
-    if let Some(subject_type) = request.subject_type {
-        conditions.push(format!("subject_type = '{}'", subject_type));
-    }
-
-    if let Some(action) = request.action {
-        conditions.push(format!("action = '{}'", action));
-    }
-
-    if let Some(ceverity) = request.ceverity {
-        conditions.push(format!("ceverity = '{}'", ceverity));
-    }
-
     let page_size = CONFIG.server.page_size as u16;
-    let offset = page_size * request.page_num;
-    let limit = page_size + 1;
-
-    query.push_str(&format!(
-        r#"
-        WHERE {} 
-        LIMIT {} OFFSET {}
-        ORDER BY created_at DESC
+    let query = DBQueryBuilder::new()
+        .select(
+            r#"
+            id,
+            subject_id,
+            subject_type,
+            action,
+            ceverity,
+            function,
+            description,
+            metadata
         "#,
-        conditions.join(" AND "),
-        limit,
-        offset
-    ));
+        )
+        .from("system_log")
+        .where_opt(request.subject_type)
+        .where_opt(request.action)
+        .where_opt(request.ceverity)
+        .offset(page_size * request.page_num)
+        .limit(page_size + 1)
+        .order_desc("created_at")
+        .build();
 
     let logs = sqlx::query_as::<_, SystemLog>(&query)
         .fetch_all(pool)
         .await?;
 
-    let has_next = logs.len() < limit as usize;
+    let has_next = logs.len() < (page_size + 1) as usize;
     let page = PagedResponse::new(logs, has_next);
 
     Ok(page)

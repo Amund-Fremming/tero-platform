@@ -21,8 +21,8 @@ use crate::{
         error::ServerError,
     },
     config::config::CONFIG,
+    integration::models::{INTEGRATION_NAMES, IntegrationName},
     mw::common::{extract_header, to_uuid},
-    system_log::models::LogCeverity,
 };
 
 static GUEST_AUTHORIZATION: &str = "X-Guest-Authentication";
@@ -36,37 +36,18 @@ pub async fn auth_mw(
     let token_header = extract_header(AUTHORIZATION.as_str(), req.headers());
 
     match (guest_header, token_header) {
-        (None, Some(token_header)) => {
-            let error_msg = format!(
-                "Token header is present but guest header is missing for user: {}",
-                token_header
-            );
-
-            error!(error_msg);
-            state
-                .audit()
-                .ceverity(LogCeverity::Critical)
-                .description(&error_msg)
-                .function("auth_mw")
-                .log_async();
-
-            return Err(ServerError::Api(
-                StatusCode::UNAUTHORIZED,
-                "Missing guest_id".into(),
-            ));
-        }
         (Some(guest_header), None) => {
             handle_guest_user(state.get_pool(), &mut req, &guest_header).await?;
         }
         (Some(guest_header), Some(token_header)) => {
-            handle_token(state.clone(), &mut req, &token_header, &guest_header).await?;
+            handle_user_token(state.clone(), &mut req, &token_header, &guest_header).await?;
+        }
+        (None, Some(token_header)) => {
+            handle_m2m_token(state.clone(), &mut req, &token_header).await?;
         }
         (None, None) => {
-            error!("Missing authentication method");
-            return Err(ServerError::Api(
-                StatusCode::UNAUTHORIZED,
-                "Missing authorization header".into(),
-            ));
+            error!("Unauthorized request");
+            return Err(ServerError::AccessDenied);
         }
     };
 
@@ -96,7 +77,44 @@ async fn handle_guest_user(
     Ok(())
 }
 
-async fn handle_token(
+async fn handle_m2m_token(
+    state: Arc<AppState>,
+    request: &mut Request<Body>,
+    token_header: &str,
+) -> Result<(), ServerError> {
+    let Some(token) = token_header.strip_prefix("Bearer ") else {
+        return Err(ServerError::Api(
+            StatusCode::UNAUTHORIZED,
+            "Missing auth token".into(),
+        ));
+    };
+
+    let token_data = verify_jwt(token, state.get_jwks()).await?;
+    let claims: Claims = serde_json::from_value(token_data.claims)?;
+
+    if !claims.is_machine() {
+        error!("M2M token handler recieved a user token");
+        return Err(ServerError::AccessDenied);
+    }
+
+    let option: Option<IntegrationName> =
+        IntegrationName::from_subject(&claims.sub, &INTEGRATION_NAMES).await;
+
+    let Some(int_name) = option else {
+        error!("Unknown integration subject: {}", claims.sub);
+        return Err(ServerError::AccessDenied);
+    };
+
+    let subject = SubjectId::Integration(int_name);
+    info!("Request by integration subject: {:?}", subject);
+
+    request.extensions_mut().insert(claims);
+    request.extensions_mut().insert(subject);
+
+    Ok(())
+}
+
+async fn handle_user_token(
     state: Arc<AppState>,
     request: &mut Request<Body>,
     token_header: &str,
@@ -113,8 +131,8 @@ async fn handle_token(
     let claims: Claims = serde_json::from_value(token_data.claims)?;
 
     if claims.is_machine() {
-        // Handle machine subject
-        todo!();
+        error!("User token handler recieved a m2m token");
+        return Err(ServerError::AccessDenied);
     }
 
     let guest_id = to_uuid(guest_header)?;
@@ -131,7 +149,7 @@ async fn handle_token(
     request.extensions_mut().insert(claims);
     request.extensions_mut().insert(subject);
 
-    Ok(())
+    return Ok(());
 }
 
 // Warning: 65% AI generated code

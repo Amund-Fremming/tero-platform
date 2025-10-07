@@ -2,10 +2,6 @@
 
 ## Quick notes
 
-- Change guest_id to be the primary id, remove guest user lookup on eveyr guest user login or action
-    - needs new sync logic 
-    - cannot do checks on guest id and otken longer since a m2m does not have guest id present
-
 - read before spin blir random, mindre for bruker å velge
 - Make read before spin, it makes it simpler for the user to create games, less friction
 - Persist game session needs to be protected. Make singalR hub a integration, validate M2M Token
@@ -59,7 +55,7 @@
 
 **M2M GameSession**
 - [x] Create M2M support for gamesession
-- [ ] Support new Subject Integration
+- [x] Support new Subject Integration
 - [ ] Create auth0 cached client for getting token from c#
 - [ ] Create and give out permissions
 
@@ -68,7 +64,6 @@
 - [x] Implement a generic cache for game search pages
 - [x] Expand search cache to support passing in functions to handle when its a cache miss
 - [x] Move cache out in its own reusable crate for future use
-- [ ] Change ttl to use UNIC EPOCH not datetime
 - [ ] Verify that cache works
 
 **Generic feature**
@@ -128,6 +123,7 @@
 - [ ] endpoint for admins to create alerts
 
 **Cleanup/refactor**
+- [ ] Optimize db queries by doing with tokio joins
 - [ ] Dynamic query builders, make a service that does this with builder pattern, now its super ugly everywhere, and hard to read
 - [ ] Some generic code for paginated queries
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)

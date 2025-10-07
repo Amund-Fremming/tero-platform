@@ -23,24 +23,24 @@ pub struct Integration {
 #[sqlx(type_name = "integration_name", rename_all = "lowercase")]
 pub enum IntegrationName {
     Auth0,
-    GameSession,
+    Session,
 }
 
 impl fmt::Display for IntegrationName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             IntegrationName::Auth0 => write!(f, "auth0"),
-            IntegrationName::GameSession => write!(f, "game_session"),
+            IntegrationName::Session => write!(f, "game_session"),
         }
     }
 }
 
 impl IntegrationName {
     pub async fn from_subject(
-        subject: String,
+        subject: &str,
         integrations: &Mutex<HashMap<String, IntegrationName>>,
     ) -> Option<IntegrationName> {
         let lock = integrations.lock().await;
-        lock.get(&subject).cloned()
+        lock.get(subject).cloned()
     }
 }

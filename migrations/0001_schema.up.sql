@@ -79,7 +79,7 @@ CREATE TABLE "join_key" (
 CREATE TABLE "integration" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "subject" VARCHAR(40) NOT NULL,
-    "name" VARCHAR(30) NOT NULL
+    "name" integration_name NOT NULL
 );
 
 CREATE TABLE "user" (

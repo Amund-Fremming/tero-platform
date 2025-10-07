@@ -33,14 +33,14 @@ pub enum GameCategory {
     Default,
 }
 
-impl GameCategory {
-    pub fn as_str(&self) -> &str {
+impl fmt::Display for GameCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GameCategory::Casual => "casual",
-            GameCategory::Ladies => "ladies",
-            GameCategory::Boys => "boys",
-            GameCategory::Default => "default",
-            GameCategory::Random => "random",
+            GameCategory::Casual => write!(f, "casual"),
+            GameCategory::Ladies => write!(f, "ladies"),
+            GameCategory::Boys => write!(f, "boys"),
+            GameCategory::Default => write!(f, "default"),
+            GameCategory::Random => write!(f, "random"),
         }
     }
 }
@@ -66,8 +66,8 @@ pub enum GameType {
 impl fmt::Display for GameType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GameType::Quiz => write!(f, "quiz"),
-            GameType::Spin => write!(f, "spin"),
+            GameType::Quiz => write!(f, "quiz_game"),
+            GameType::Spin => write!(f, "spin_game"),
         }
     }
 }

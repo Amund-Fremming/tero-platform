@@ -80,13 +80,19 @@ pub enum SubjectId {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Auth0User {
+    #[serde(rename = "user_id")]
     pub auth0_id: String,
-    pub given_name: Option<String>,
-    pub family_name: Option<String>,
     pub email: Option<String>,
     pub email_verified: Option<bool>,
-    pub phone: Option<String>,
+    pub username: Option<String>,
+    pub phone_number: Option<String>,
     pub phone_verified: Option<bool>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub name: Option<String>,
+    pub nickname: Option<String>,
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type)]

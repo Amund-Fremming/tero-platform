@@ -5,6 +5,7 @@ use axum::{
 };
 use tracing::debug;
 
+#[allow(dead_code)]
 pub async fn request_mw(req: Request<Body>, next: Next) -> Response<Body> {
     let method = req.method().to_string();
     let uri = req.uri().to_string();
