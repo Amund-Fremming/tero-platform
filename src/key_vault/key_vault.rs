@@ -4,7 +4,6 @@ use rand::seq::IndexedRandom;
 use sqlx::{Pool, Postgres};
 use tokio::sync::RwLock;
 use tracing::debug;
-use tracing_subscriber::field::debug;
 
 use crate::{
     common::error::ServerError,
