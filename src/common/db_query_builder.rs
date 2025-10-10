@@ -1,34 +1,42 @@
 use core::fmt;
-use tracing::debug;
+use sqlx::Postgres;
 
-pub struct DBQueryBuilder {
-    pub query: String,
-    pub filters: Vec<String>,
-    pub filters_added: bool,
+pub struct DBQueryBuilder<'a> {
+    builder: sqlx::QueryBuilder<'a, Postgres>,
+    where_used: bool,
 }
 
 #[allow(dead_code, unused_variables)]
-impl DBQueryBuilder {
-    pub fn new() -> Self {
+impl<'a> DBQueryBuilder<'a> {
+    pub fn select(base: &str) -> Self {
         Self {
-            query: String::new(),
-            filters: Vec::new(),
-            filters_added: false,
+            builder: sqlx::QueryBuilder::new(base),
+            where_used: false,
         }
     }
 
-    pub fn select(mut self, base: &str) -> Self {
-        self.query.push_str(&base);
+    pub fn from(mut self, table: &'a str) -> Self {
+        self.builder.push("FROM ");
+        self.builder.push(table);
         self
     }
 
-    pub fn from(mut self, table: &str) -> Self {
-        self.query.push_str(&format!("\nFROM \"{}\"", table));
-        self
-    }
+    pub fn r#where<T>(mut self, field: &str, value: T) -> Self
+    where
+        T: fmt::Display,
+    {
+        match self.where_used {
+            true => {
+                self.builder.push(format!(" AND {field} = "));
+                self.builder.push_bind(value.to_string());
+            }
+            false => {
+                self.builder.push(format!(" WHERE {field} = "));
+                self.builder.push_bind(value.to_string());
+                self.where_used = true;
+            }
+        }
 
-    pub fn r#where(mut self, field: &str, value: &str) -> Self {
-        self.filters.push(format!("{} = '{}'", field, value));
         self
     }
 
@@ -37,50 +45,51 @@ impl DBQueryBuilder {
         T: fmt::Display,
     {
         if let Some(value) = value {
-            self.filters.push(format!("{} = {}", field, value));
+            match self.where_used {
+                true => {
+                    self.builder.push(format!(" AND {field} = "));
+                    self.builder.push_bind(value.to_string());
+                }
+                false => {
+                    self.builder.push(format!(" WHERE {field} = "));
+                    self.builder.push_bind(value.to_string());
+                    self.where_used = true;
+                }
+            }
         }
 
         self
     }
 
-    pub fn order_asc(mut self, field: &str) -> Self {
-        self.ensure_filters();
-        self.query.push_str(&format!("\nORDER BY {} ASC", field));
+    pub fn order_asc(mut self, field: &'a str) -> Self {
+        self.builder.push("ORDER BY ");
+        self.builder.push_bind(field);
+        self.builder.push("ASC");
         self
     }
 
-    pub fn order_desc(mut self, field: &str) -> Self {
-        self.ensure_filters();
-        self.query.push_str(&format!("\nORDER BY {} DESC", field));
+    pub fn order_desc(mut self, field: &'a str) -> Self {
+        self.builder.push("ORDER BY ");
+        self.builder.push_bind(field);
+        self.builder.push("DESC");
         self
     }
 
     pub fn limit(mut self, limit: impl Into<usize>) -> Self {
-        self.ensure_filters();
         let limit = limit.into();
-        self.query.push_str(&format!("\nLIMIT {}", limit));
+        self.builder.push("LIMIT ");
+        self.builder.push_bind(limit.to_string());
         self
     }
 
-    pub fn offset(mut self, offset: u16) -> Self {
-        self.ensure_filters();
-        self.query.push_str(&format!("\nOFFSET {} ", offset));
+    pub fn offset(mut self, offset: impl Into<usize>) -> Self {
+        let offset = offset.into();
+        self.builder.push("OFFSET ");
+        self.builder.push_bind(offset.to_string());
         self
     }
 
-    fn ensure_filters(&mut self) {
-        if self.filters.is_empty() || self.filters_added {
-            return;
-        };
-
-        self.query
-            .push_str(&format!("\nWHERE {}", self.filters.join(" AND ")));
-
-        self.filters_added = true;
-    }
-
-    pub fn build(self) -> String {
-        debug!("Executing query: \n {}", self.query);
-        self.query
+    pub fn build(self) -> sqlx::QueryBuilder<'a, Postgres> {
+        self.builder
     }
 }

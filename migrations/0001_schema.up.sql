@@ -71,9 +71,12 @@ CREATE TABLE "system_log" (
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE "join_key" (
-    "id" VARCHAR(8) PRIMARY KEY,
-    "word" VARCHAR(5) NOT NULL
+CREATE TABLE "prefix_word" (
+    "word" VARCHAR(5) PRIMARY KEY,
+);
+
+CREATE TABLE "suffix_word" (
+    "word" VARCHAR(5) PRIMARY KEY,
 );
 
 CREATE TABLE "integration" (
@@ -123,8 +126,6 @@ CREATE TABLE "spin_game" (
 
 CREATE INDEX "idx_saved_game_id" ON "saved_game" ("id");
 CREATE INDEX "idx_saved_game_delete_keys" ON "saved_game" ("id", "user_id");
-
-CREATE INDEX "idx_join_key_id" ON "join_key" ("id");
 
 CREATE INDEX "idx_system_log_ceverity" ON "system_log" ("ceverity");
 

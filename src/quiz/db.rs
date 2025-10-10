@@ -64,7 +64,7 @@ pub async fn tx_persist_quiz_session(
     let quiz_row = sqlx::query(
         r#"
         INSERT INTO "quiz_game" (id, base_id, questions)
-        VALUES ($1. $2, $3)
+        VALUES ($1, $2, $3)
         "#,
     )
     .bind(&session.base_id)

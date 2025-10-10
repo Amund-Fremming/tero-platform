@@ -1,4 +1,5 @@
 -- Add down migration script here
 
-DELETE FROM "join_key";
+DELETE FROM "prefix_word";
+DELETE FROM "suffix_word";
 

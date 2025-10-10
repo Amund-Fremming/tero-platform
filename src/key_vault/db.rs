@@ -10,23 +10,19 @@ struct JoinKey {
     pub word: String,
 }
 
-pub async fn get_word_set(pool: &Pool<Postgres>, ids: &[&str; 2]) -> Result<String, ServerError> {
-    let keys = sqlx::query_as::<_, JoinKey>(
-        r#"
-        SELECT id, word
-        FROM "join_key"
-        WHERE id = ANY($1)
-        LIMIT 2
-        "#,
-    )
-    .bind(ids)
-    .fetch_all(pool)
-    .await?;
+pub async fn get_word_sets(
+    pool: &Pool<Postgres>,
+) -> Result<(Vec<String>, Vec<String>), ServerError> {
+    let prefix_fut =
+        sqlx::query_scalar::<_, String>("SELECT word FROM prefix_word").fetch_all(pool);
 
-    if keys.len() != 2 {
-        return Err(ServerError::Internal("Missing join keys".into()));
-    }
+    let suffix_fut =
+        sqlx::query_scalar::<_, String>("SELECT word FROM prefix_word").fetch_all(pool);
 
-    let join_key = format!("{} {}", keys[0].word, keys[1].word);
-    Ok(join_key)
+    let (prefix_result, suffix_result): (
+        Result<Vec<String>, sqlx::Error>,
+        Result<Vec<String>, sqlx::Error>,
+    ) = tokio::join!(prefix_fut, suffix_fut);
+
+    Ok((prefix_result?, suffix_result?))
 }

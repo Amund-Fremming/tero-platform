@@ -1,5 +1,12 @@
 # Tasklist
 
+## LEFT OFF
+- get radnom id needs to use then actual length of the remaining words, not all, remove words count thingy?
+- performance lost on cloing the whole vault on refill task
+- switch collection for keys, removing from vec shofts all values, Use hashset to remove duplicates? maybe simpler logic then for refilling?
+    - use swap_remove instead of remove
+    - maybe not hashset
+
 ## Quick notes
 
 - keyvault randomnesss can cause some bottleneck when trying to find a ranodm, it needs to only get random from the keeys not in use, not try to get all random

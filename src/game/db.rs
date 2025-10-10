@@ -29,13 +29,10 @@ pub async fn get_game_page(
     game_type: GameType,
     request: GamePageQuery,
 ) -> Result<PagedResponse<GameBase>, sqlx::Error> {
-    todo!();
-    /*
     let page_size = CONFIG.server.page_size as u16;
-
-    let query = DBQueryBuilder::new()
-        .select(
-            r#"
+    let games = DBQueryBuilder::select(
+        r#"
+        SELECT 
             id,
             name,
             description,
@@ -45,25 +42,22 @@ pub async fn get_game_page(
             times_played,
             last_played
             "#,
-        )
-        .from("game_base")
-        .where_some("game_type = $1")
-        .where_opt(request.category)
-        .offset(page_size * request.page_num)
-        .limit(page_size + 1)
-        .order_desc("times_played")
-        .build();
-
-    let games = sqlx::query_as::<_, GameBase>(&query)
-        .bind(&game_type)
-        .fetch_all(pool)
-        .await?;
+    )
+    .from("game_base")
+    .r#where("game_type", game_type)
+    .where_opt("category", request.category)
+    .offset(page_size * request.page_num)
+    .limit(page_size + 1)
+    .order_desc("times_played")
+    .build()
+    .build_query_as::<GameBase>()
+    .fetch_all(pool)
+    .await?;
 
     let has_next = games.len() < (page_size + 1) as usize;
     let page = PagedResponse::new(games, has_next);
 
     Ok(page)
-    */
 }
 
 pub async fn increment_times_played(

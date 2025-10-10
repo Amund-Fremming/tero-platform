@@ -5,8 +5,6 @@
 -- Drop indexes
 DROP INDEX IF EXISTS "idx_saved_game_id";
 
-DROP INDEX IF EXISTS "idx_join_key_id";
-
 DROP INDEX IF EXISTS "idx_system_log_ceverity";
 
 DROP INDEX IF EXISTS "idx_quiz_game_id";
@@ -24,6 +22,8 @@ DROP INDEX IF EXISTS "idx_user_last_active";
 DROP INDEX IF EXISTS "idx_user_keys";
 
 -- Drop tables
+DROP TABLE IF EXISTS "prefix_word";
+DROP TABLE IF EXISTS "suffix_word";
 DROP TABLE IF EXISTS "saved_game";
 DROP TABLE IF EXISTS "system_log";
 DROP TABLE IF EXISTS "integration";
