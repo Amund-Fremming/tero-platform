@@ -23,7 +23,6 @@ use crate::{
             SavedGamePageQuery,
         },
     },
-    key_vault::models::{JoinKeySet, KEY_VAULT},
     quiz::{
         db::{get_quiz_session_by_id, tx_persist_quiz_session},
         models::QuizSession,
@@ -39,7 +38,7 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
         .route("/{game_type}/page", post(get_game_page))
         .route("/{game_type}/create", post(create_interactive_game))
         .route("/{game_type}/{game_id}", delete(delete_game))
-        .route("/{game_type}/free-key", patch(free_game_key))
+        .route("/{game_type}/free-key/{key_word}", patch(free_game_key))
         .route("/{game_type}/save/{game_id}", post(save_game))
         .route("/{game_type}/unsave/{game_id}", delete(delete_saved_game))
         .route("/saved", get(get_saved_games_page))
@@ -87,19 +86,36 @@ async fn delete_game(
 }
 
 async fn join_interactive_game(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path((game_type, join_word)): Path<(GameType, String)>,
+    Path((game_type, key_word)): Path<(GameType, String)>,
 ) -> Result<impl IntoResponse, ServerError> {
     if let SubjectId::Integration(id) = subject_id {
         error!("Integration {} tried accessing user endpoint", id);
         return Err(ServerError::AccessDenied);
     }
 
-    let hub_address = format!("{}hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
+    let words: Vec<&str> = key_word.split(" ").collect();
+    let tuple = match (words.get(0), words.get(1)) {
+        (Some(p), Some(s)) => (p.to_string(), s.to_string()),
+        _ => {
+            return Err(ServerError::Api(
+                StatusCode::BAD_REQUEST,
+                "Key word in invalid format".into(),
+            ));
+        }
+    };
 
+    if !state.get_vault().key_active(tuple).await {
+        return Err(ServerError::Api(
+            StatusCode::NOT_FOUND,
+            "Game with game key does not exist".into(),
+        ));
+    }
+
+    let hub_address = format!("{}hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
     let response = InteractiveGameResponse {
-        join_word,
+        key_word,
         hub_address,
     };
 
@@ -119,7 +135,9 @@ async fn create_interactive_game(
 
     let client = state.get_client();
     let gs_client = state.get_gs_client();
-    let join_key = KEY_VAULT.create_key(state.get_pool()).await?;
+    let vault = state.get_vault();
+
+    let key_word = vault.create_key(state.syslog()).await?;
 
     let payload = match game_type {
         GameType::Spin => {
@@ -132,11 +150,10 @@ async fn create_interactive_game(
         }
     };
 
-    let join_word = join_key.join_word.clone();
     let envelope = GameEnvelope {
         game_type: game_type.clone(),
         host_id: user_id,
-        join_key,
+        key_word: key_word.clone(),
         payload,
     };
 
@@ -145,7 +162,7 @@ async fn create_interactive_game(
     let hub_address = format!("{}/hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
 
     let response = InteractiveGameResponse {
-        join_word,
+        key_word,
         hub_address,
     };
 
@@ -182,7 +199,9 @@ async fn initiate_interactive_game(
 
     let client = state.get_client();
     let gs_client = state.get_gs_client();
-    let join_key = KEY_VAULT.create_key(state.get_pool()).await?;
+    let vault = state.get_vault();
+
+    let key_word = vault.create_key(state.syslog()).await?;
 
     let payload = match game_type {
         GameType::Spin => {
@@ -197,11 +216,10 @@ async fn initiate_interactive_game(
         }
     };
 
-    let join_word = join_key.join_word.clone();
     let envelope = GameEnvelope {
         game_type: game_type.clone(),
         host_id: user_id,
-        join_key,
+        key_word: key_word.clone(),
         payload,
     };
 
@@ -210,7 +228,7 @@ async fn initiate_interactive_game(
     let hub_address = format!("{}/hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
 
     let response = InteractiveGameResponse {
-        join_word,
+        key_word,
         hub_address,
     };
 
@@ -247,6 +265,7 @@ pub async fn persist_standalone_game(
             let session: QuizSession = serde_json::from_value(request.payload)?;
             let mut tx = state.get_pool().begin().await?;
             tx_persist_quiz_session(&mut tx, &session).await?;
+            tx.commit().await?;
         }
         _ => {
             return Err(ServerError::Api(
@@ -284,6 +303,7 @@ async fn persist_interactive_game(
                 _ => {
                     let mut tx = pool.begin().await?;
                     tx_persist_spin_session(&mut tx, &session).await?;
+                    tx.commit().await?;
                 }
             }
         }
@@ -297,9 +317,10 @@ async fn persist_interactive_game(
 }
 
 async fn free_game_key(
+    State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
-    Json(key_pair): Json<JoinKeySet>,
+    Path(key_word): Path<String>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Integration(_) = subject_id else {
         error!("User tried to free game keys/word");
@@ -310,7 +331,18 @@ async fn free_game_key(
         return Err(ServerError::Permission(missing));
     }
 
-    KEY_VAULT.remove_key(&key_pair.combined_id).await;
+    let words: Vec<&str> = key_word.split(" ").collect();
+    let tuple = match (words.get(0), words.get(1)) {
+        (Some(prefix), Some(suffix)) => (prefix.to_string(), suffix.to_string()),
+        _ => {
+            return Err(ServerError::Api(
+                StatusCode::BAD_REQUEST,
+                "Key word in invalid format".into(),
+            ));
+        }
+    };
+
+    state.get_vault().remove_key(tuple).await;
     Ok(StatusCode::OK)
 }
 

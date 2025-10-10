@@ -1,15 +1,11 @@
 # Tasklist
 
-## LEFT OFF
-- get radnom id needs to use then actual length of the remaining words, not all, remove words count thingy?
-- performance lost on cloing the whole vault on refill task
-- switch collection for keys, removing from vec shofts all values, Use hashset to remove duplicates? maybe simpler logic then for refilling?
-    - use swap_remove instead of remove
-    - maybe not hashset
-
 ## Quick notes
 
-- keyvault randomnesss can cause some bottleneck when trying to find a ranodm, it needs to only get random from the keeys not in use, not try to get all random
+- keyvault stuck at 100 keys
+    - place in db
+    - generate cross keys
+    - refill logic is flawed, it does not handle stuck keys, this will need a timeout
 
 - read before spin blir random, mindre for bruker å velge
 - Make read before spin, it makes it simpler for the user to create games, less friction
@@ -65,8 +61,8 @@
 **M2M GameSession**
 - [x] Create M2M support for gamesession
 - [x] Support new Subject Integration
+- [x] Create and give out permissions
 - [ ] Create auth0 cached client for getting token from c#
-- [ ] Create and give out permissions
 
 **Cache**
 - [x] Implement a generic cache wrapper and implementation for DRY principle for future games and caches
@@ -92,7 +88,7 @@
 - [x] Pagination support
 - [x] Typed search by game, category
 - [x] Universal join game
-- [ ] Cron job for deleting games that is not longer played
+- [x] Cron job for deleting games that is not longer played
 
 **KeyVault**
 - [x] Setup index and tables

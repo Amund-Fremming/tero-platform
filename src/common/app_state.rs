@@ -1,18 +1,17 @@
-use std::{sync::Arc, time::Duration};
+use std::{env, sync::Arc, time::Duration};
 
 use serde_json::json;
 use tracing::{error, info};
 
 use gustcache::GustCache;
 use reqwest::Client;
-use serde::Deserialize;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 use crate::{
-    auth::db,
+    auth::{db, models::Jwks},
     client::gs_client::GSClient,
-    common::{error::ServerError, models::PagedResponse},
+    common::{error::ServerError, key_vault::KeyVault, models::PagedResponse},
     config::config::CONFIG,
     game::{db::delete_non_active_games, models::GameBase},
     system_log::{
@@ -28,23 +27,7 @@ pub struct AppState {
     client: Client,
     gs_client: GSClient,
     page_cache: Arc<GustCache<Vec<PagedResponse<GameBase>>>>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Jwks {
-    pub keys: [Jwk; 2],
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-pub struct Jwk {
-    pub kid: String,
-    pub n: String,
-    pub e: String,
-    pub kty: String,
-    pub alg: String,
-    #[serde(rename(deserialize = "use"))]
-    pub use_: String,
+    key_vault: Arc<KeyVault>,
 }
 
 impl AppState {
@@ -57,6 +40,7 @@ impl AppState {
         let response = client.get(jwks_url).send().await?;
         let jwks = response.json::<Jwks>().await?;
         let page_cache = Arc::new(GustCache::from_ttl(chrono::Duration::minutes(2)));
+        let key_vault = Arc::new(KeyVault::load_words(&pool).await?);
 
         let state = Arc::new(Self {
             pool,
@@ -64,6 +48,7 @@ impl AppState {
             client,
             gs_client,
             page_cache,
+            key_vault,
         });
 
         Ok(state)
@@ -91,6 +76,10 @@ impl AppState {
 
     pub fn syslog(&self) -> SystemLogBuilder {
         SystemLogBuilder::new(self.get_pool())
+    }
+
+    pub fn get_vault(&self) -> &KeyVault {
+        &self.key_vault
     }
 
     pub fn spawn_game_cleanup(&self) {
@@ -144,6 +133,7 @@ impl AppState {
                 return;
             }
 
+            tx.commit().await;
             info!("User was synced successfully");
         });
     }

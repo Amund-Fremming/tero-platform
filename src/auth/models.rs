@@ -6,6 +6,23 @@ use uuid::Uuid;
 
 use crate::{game::models::Gender, integration::models::IntegrationName};
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct Jwks {
+    pub keys: [Jwk; 2],
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Clone)]
+pub struct Jwk {
+    pub kid: String,
+    pub n: String,
+    pub e: String,
+    pub kty: String,
+    pub alg: String,
+    #[serde(rename(deserialize = "use"))]
+    pub use_: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnsureGuestQuery {
     pub guest_id: Option<Uuid>,

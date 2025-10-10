@@ -1,48 +1,48 @@
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::{env, sync::Arc};
 
     use dotenv::dotenv;
-    use sqlx::{Pool, Postgres};
     use tracing::level_filters::LevelFilter;
 
-    use crate::key_vault::key_vault::KeyVault;
+    use crate::common::{app_state::AppState, key_vault::KeyVaultError};
 
-    // Setup logging for tests - call this once per test or in a setup function
     fn setup_logging() {
-        let _ = tracing_subscriber::FmtSubscriber::builder()
+        tracing_subscriber::FmtSubscriber::builder()
             .with_max_level(LevelFilter::DEBUG)
-            .with_test_writer() // This makes logs appear in test output
-            .try_init(); // Use try_init to avoid panicking if already initialized
+            .with_test_writer()
+            .try_init()
+            .unwrap();
     }
 
-    async fn setup_pool() -> Pool<Postgres> {
+    async fn setup_app_state() -> Arc<AppState> {
         dotenv().ok();
         let connection_string =
             env::var("TERO__DATABASE_URL").expect("Failed to obtain connection string");
-        let pool = Pool::<Postgres>::connect(&connection_string)
+        let state = AppState::from_connection_string(&connection_string)
             .await
-            .expect("Failed to connect to database");
-        pool
+            .unwrap();
+        state
     }
 
     #[tokio::test]
     async fn max_limit_keys() {
         setup_logging();
+        let state = setup_app_state().await;
+        let vault = state.get_vault();
 
-        let pool = setup_pool().await;
-        let vault = KeyVault::new();
-        let num_keys: usize = 100 * 100;
-
-        for _ in 0..num_keys {
-            let result = vault.create_key(&pool).await;
-            assert!(
-                result.is_ok(),
-                "Failed to create key: {}",
-                result.err().unwrap()
-            );
+        for num in 0..10000 {
+            let word = vault.create_key(state.syslog()).await.unwrap();
+            println!("{} - {}", num + 1, word)
         }
 
-        assert_eq!(vault.size().await, num_keys);
+        let result = vault.create_key(state.syslog()).await;
+        assert!(result.is_err());
+
+        let error = result.err().unwrap();
+        match error {
+            KeyVaultError::FullCapasity => assert!(true),
+            _ => assert!(false, "Failed with: {}", error.to_string()),
+        }
     }
 }

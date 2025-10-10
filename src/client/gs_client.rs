@@ -6,7 +6,7 @@ use crate::{client::gs_client_error::GSClientError, game::models::GameEnvelope};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InteractiveGameResponse {
-    pub join_word: String,
+    pub key_word: String,
     pub hub_address: String,
 }
 

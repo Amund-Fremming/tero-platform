@@ -72,11 +72,11 @@ CREATE TABLE "system_log" (
 );
 
 CREATE TABLE "prefix_word" (
-    "word" VARCHAR(5) PRIMARY KEY,
+    "word" VARCHAR(5) PRIMARY KEY
 );
 
 CREATE TABLE "suffix_word" (
-    "word" VARCHAR(5) PRIMARY KEY,
+    "word" VARCHAR(5) PRIMARY KEY
 );
 
 CREATE TABLE "integration" (

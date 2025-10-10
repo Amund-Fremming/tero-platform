@@ -4,7 +4,10 @@ use axum::{http::StatusCode, response::IntoResponse};
 use thiserror::Error;
 use tracing::error;
 
-use crate::{auth::models::Permission, client::gs_client_error::GSClientError};
+use crate::{
+    auth::models::Permission, client::gs_client_error::GSClientError,
+    common::key_vault::KeyVaultError,
+};
 
 #[derive(Debug, Error)]
 pub enum ServerError {
@@ -43,6 +46,9 @@ pub enum ServerError {
 
     #[error("Out of sync error: {0}")]
     OutOfSync(String),
+
+    #[error("KeyVault error: {0}")]
+    KeyVaultError(#[from] KeyVaultError),
 }
 
 impl IntoResponse for ServerError {
@@ -103,6 +109,10 @@ impl IntoResponse for ServerError {
             }
             ServerError::OutOfSync(e) => {
                 error!("Out of sync error: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, String::new())
+            }
+            ServerError::KeyVaultError(e) => {
+                error!("KeyVault error: {}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, String::new())
             }
         }

@@ -14,12 +14,9 @@ use tracing::{error, info};
 use crate::{
     auth::{
         db::{get_user_id_from_guest_id, get_user_keys_from_auth0_id},
-        models::{Claims, SubjectId},
+        models::{Claims, Jwks, SubjectId},
     },
-    common::{
-        app_state::{AppState, Jwks},
-        error::ServerError,
-    },
+    common::{app_state::AppState, error::ServerError},
     config::config::CONFIG,
     integration::models::{INTEGRATION_NAMES, IntegrationName},
     mw::common::{extract_header, to_uuid},

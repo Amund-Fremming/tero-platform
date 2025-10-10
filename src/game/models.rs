@@ -5,8 +5,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::key_vault::models::JoinKeySet;
-
 pub trait GameConverter {
     fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error>;
 }
@@ -85,7 +83,7 @@ pub struct SavedGamePageQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameEnvelope {
-    pub join_key: JoinKeySet,
+    pub key_word: String,
     pub host_id: Uuid,
     pub game_type: GameType,
     pub payload: serde_json::Value,

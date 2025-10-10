@@ -28,7 +28,6 @@ mod config;
 mod game;
 mod health;
 mod integration;
-mod key_vault;
 mod mw;
 mod quiz;
 mod spin;
