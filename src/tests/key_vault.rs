@@ -31,7 +31,8 @@ mod tests {
         let state = setup_app_state().await;
         let vault = state.get_vault();
 
-        for num in 0..10000 {
+        for num in 0..10_000 {
+            println!("Yes");
             let word = vault.create_key(state.syslog()).await.unwrap();
             println!("{} - {}", num + 1, word)
         }

@@ -89,13 +89,14 @@ impl AppState {
             loop {
                 interval.tick().await;
                 if let Err(e) = delete_non_active_games(state.get_pool()).await {
-                    state
+                    let _ = state
                         .syslog()
                         .action(Action::Delete)
                         .ceverity(LogCeverity::Info)
                         .description("Failed to purge inactive games")
                         .metadata(json!({"error": e.to_string()}))
-                        .log();
+                        .log()
+                        .await;
                 }
             }
         });

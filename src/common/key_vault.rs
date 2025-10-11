@@ -20,81 +20,86 @@ pub enum KeyVaultError {
 
     #[error("Failed to load words: {0}")]
     Database(#[from] sqlx::Error),
+
+    #[error("Word sets differ in length")]
+    IncompatibleLength,
 }
 
 pub struct KeyVault {
-    prefix_len: u8,
-    suffix_len: u8,
+    word_count: u8,
     active_keys: Arc<RwLock<HashSet<(String, String)>>>,
-    prefix_words: Arc<RwLock<Vec<String>>>,
-    suffix_words: Arc<RwLock<Vec<String>>>,
+    prefix_words: Arc<Vec<String>>,
+    suffix_words: Arc<Vec<String>>,
 }
 
 impl KeyVault {
     pub async fn load_words(pool: &Pool<Postgres>) -> Result<Self, KeyVaultError> {
-        let mut vault = Self {
-            prefix_len: 0,
-            suffix_len: 0,
-            active_keys: Arc::new(RwLock::new(HashSet::new())),
-            prefix_words: Arc::new(RwLock::new(Vec::new())),
-            suffix_words: Arc::new(RwLock::new(Vec::new())),
-        };
-
         let (db_prefix, db_suffix) = db::get_word_sets(pool).await?;
 
-        vault.prefix_len = db_prefix.len() as u8;
-        {
-            let mut lock = vault.prefix_words.write().await;
-            *lock = db_prefix;
+        if db_prefix.len() != db_suffix.len() {
+            return Err(KeyVaultError::IncompatibleLength);
         }
 
-        vault.suffix_len = db_suffix.len() as u8;
-        {
-            let mut lock = vault.suffix_words.write().await;
-            *lock = db_suffix;
-        }
-
-        Ok(vault)
+        Ok(Self {
+            word_count: db_prefix.len() as u8,
+            active_keys: Arc::new(RwLock::new(HashSet::new())),
+            prefix_words: Arc::new(Vec::from(db_prefix)),
+            suffix_words: Arc::new(Vec::from(db_suffix)),
+        })
     }
 
     pub async fn key_active(&self, tuple: (String, String)) -> bool {
         let lock = self.active_keys.read().await;
-        lock.get(&tuple).is_some()
+        lock.contains(&tuple)
     }
 
     pub async fn remove_key(&self, tuple: (String, String)) {
-        {
-            let mut lock = self.active_keys.write().await;
-            lock.remove(&tuple);
-        }
+        let mut lock = self.active_keys.write().await;
+        lock.remove(&tuple);
     }
 
+    /*
+       Performance upgrade
+       - If alot of clients try to create a key at the same time they will lock eachother out, causing this to be slow
+       - One solution is to clone the working arrays and release locks, then obtaining again when you write
+            - the active still neds to not be cloned
+
+        - prefix and suffix words might not need a lock, we can just use a arc on them, they are static when loaded
+    */
     pub async fn create_key(&self, syslog: SystemLogBuilder) -> Result<String, KeyVaultError> {
-        let prefix_lock = self.prefix_words.read().await;
-        let suffix_lock = self.suffix_words.read().await;
         let active_lock = self.active_keys.read().await;
 
         for _ in 0..100 {
             let Ok((idx1, idx2)) = self.random_idx().await else {
                 break; // Log outside loop
             };
-
-            let key = (prefix_lock[idx1].to_string(), suffix_lock[idx2].to_string());
-
-            if !active_lock.contains(&key) {
-                drop(active_lock);
-                let mut active_lock = self.active_keys.write().await;
-                active_lock.insert(key.clone());
-                return Ok(format!("{} {}", key.0, key.1));
+            println!("1");
+            let key = (
+                self.prefix_words[idx1].clone(),
+                self.suffix_words[idx2].clone(),
+            );
+            {
+                if !active_lock.contains(&key) {
+                    println!("2");
+                    drop(active_lock);
+                    let mut active_lock = self.active_keys.write().await;
+                    active_lock.insert(key.clone());
+                    return Ok(format!("{} {}", key.0, key.1));
+                }
             }
         }
 
-        for i in 0..prefix_lock.len() {
-            for j in 0..suffix_lock.len() {
-                let key = (prefix_lock[i].to_string(), suffix_lock[j].to_string());
+        let active_lock = self.active_keys.read().await;
+        for i in 0..self.prefix_words.len() {
+            for j in 0..self.suffix_words.len() {
+                println!("3");
+                let key = (
+                    self.prefix_words[i].to_string(),
+                    self.suffix_words[j].to_string(),
+                );
 
+                println!("4");
                 if !active_lock.contains(&key) {
-                    drop(active_lock);
                     let mut active_lock = self.active_keys.write().await;
                     active_lock.insert(key.clone());
                     return Ok(format!("{} {}", key.0, key.1));
@@ -113,17 +118,15 @@ impl KeyVault {
     }
 
     async fn random_idx(&self) -> Result<(usize, usize), KeyVaultError> {
-        match (self.prefix_len, self.suffix_len) {
-            (0, 0) => {
-                return Err(KeyVaultError::FullCapasity);
-            }
-            (1, 1) => return Ok((0, 0)),
+        match self.word_count {
+            0 => return Err(KeyVaultError::FullCapasity),
+            1 => return Ok((0, 0)),
             _ => {}
         }
 
         let mut rng = ChaCha8Rng::from_os_rng();
-        let prefix_idx = rng.random_range(0..self.prefix_len as usize);
-        let suffix_idx = rng.random_range(0..self.suffix_len as usize);
+        let prefix_idx = rng.random_range(0..self.word_count as usize);
+        let suffix_idx = rng.random_range(0..self.word_count as usize);
 
         Ok((prefix_idx, suffix_idx))
     }
