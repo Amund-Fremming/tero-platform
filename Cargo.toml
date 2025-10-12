@@ -33,3 +33,4 @@ rand_chacha = "0.9.0"
 gustcache = { git = "https://github.com/Amund-Fremming/GustCache.git" }
 config = "0.15.16"
 dashmap = "6.1.0"
+futures = "0.3.31"

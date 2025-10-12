@@ -1,4 +1,8 @@
-use std::{env, sync::Arc, time::Duration};
+use std::{
+    env,
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use serde_json::json;
 use tracing::{error, info};
@@ -83,14 +87,14 @@ impl AppState {
     }
 
     pub fn spawn_game_cleanup(&self) {
-        let state = self.clone();
+        let pool = self.get_pool().clone();
         let mut interval = tokio::time::interval(Duration::from_secs(86_400));
+
         tokio::spawn(async move {
             loop {
                 interval.tick().await;
-                if let Err(e) = delete_non_active_games(state.get_pool()).await {
-                    let _ = state
-                        .syslog()
+                if let Err(e) = delete_non_active_games(&pool).await {
+                    let _ = SystemLogBuilder::new(&pool)
                         .action(Action::Delete)
                         .ceverity(LogCeverity::Info)
                         .description("Failed to purge inactive games")

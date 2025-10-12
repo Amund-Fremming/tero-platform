@@ -18,7 +18,6 @@ pub struct GSClient {
 impl GSClient {
     pub fn new(domain: impl Into<String>) -> Self {
         let domain = domain.into();
-
         Self { domain }
     }
 
