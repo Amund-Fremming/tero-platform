@@ -36,11 +36,11 @@ mod tests {
         let vault = state.get_vault();
 
         for num in 0..10_000 {
-            let word = vault.create_key(state.syslog()).await.unwrap();
+            let word = vault.create_key(state.get_pool()).unwrap();
             println!("{} - {}", num + 1, word)
         }
 
-        let result = vault.create_key(state.syslog()).await;
+        let result = vault.create_key(state.get_pool());
         assert!(result.is_err());
 
         let error = result.err().unwrap();
@@ -62,8 +62,7 @@ mod tests {
 
             let handle = tokio::spawn(async move {
                 let vault = state_clone.get_vault();
-                let syslog = state_clone.syslog();
-                match vault.create_key(syslog).await {
+                match vault.create_key(state_clone.get_pool()) {
                     Ok(key) => {
                         println!("Task {} opprettet nøkkel: {}", i, key);
                         Ok(key)
