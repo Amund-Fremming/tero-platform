@@ -32,7 +32,6 @@ mod tests {
         let vault = state.get_vault();
 
         for num in 0..10_000 {
-            println!("Yes");
             let word = vault.create_key(state.syslog()).await.unwrap();
             println!("{} - {}", num + 1, word)
         }
@@ -45,5 +44,10 @@ mod tests {
             KeyVaultError::FullCapasity => assert!(true),
             _ => assert!(false, "Failed with: {}", error.to_string()),
         }
+    }
+
+    #[tokio::test]
+    async fn test_async_load() {
+        //
     }
 }

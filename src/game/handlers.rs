@@ -106,7 +106,7 @@ async fn join_interactive_game(
         }
     };
 
-    if !state.get_vault().key_active(tuple).await {
+    if !state.get_vault().key_active(&tuple) {
         return Err(ServerError::Api(
             StatusCode::NOT_FOUND,
             "Game with game key does not exist".into(),
@@ -342,7 +342,7 @@ async fn free_game_key(
         }
     };
 
-    state.get_vault().remove_key(tuple).await;
+    state.get_vault().remove_key(tuple);
     Ok(StatusCode::OK)
 }
 

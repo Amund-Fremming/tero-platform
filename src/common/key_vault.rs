@@ -1,5 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
+use dashmap::DashSet;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use sqlx::{Pool, Postgres};
@@ -27,7 +28,7 @@ pub enum KeyVaultError {
 
 pub struct KeyVault {
     word_count: u8,
-    active_keys: Arc<RwLock<HashSet<(String, String)>>>,
+    active_keys: Arc<DashSet<(String, String)>>,
     prefix_words: Arc<Vec<String>>,
     suffix_words: Arc<Vec<String>>,
 }
@@ -42,20 +43,18 @@ impl KeyVault {
 
         Ok(Self {
             word_count: db_prefix.len() as u8,
-            active_keys: Arc::new(RwLock::new(HashSet::new())),
+            active_keys: Arc::new(DashSet::new()),
             prefix_words: Arc::new(Vec::from(db_prefix)),
             suffix_words: Arc::new(Vec::from(db_suffix)),
         })
     }
 
-    pub async fn key_active(&self, tuple: (String, String)) -> bool {
-        let lock = self.active_keys.read().await;
-        lock.contains(&tuple)
+    pub fn key_active(&self, key: &(String, String)) -> bool {
+        self.active_keys.contains(&key)
     }
 
-    pub async fn remove_key(&self, tuple: (String, String)) {
-        let mut lock = self.active_keys.write().await;
-        lock.remove(&tuple);
+    pub fn remove_key(&self, key: (String, String)) {
+        self.active_keys.remove(&key);
     }
 
     /*
@@ -67,43 +66,37 @@ impl KeyVault {
         - prefix and suffix words might not need a lock, we can just use a arc on them, they are static when loaded
     */
     pub async fn create_key(&self, syslog: SystemLogBuilder) -> Result<String, KeyVaultError> {
-        let active_lock = self.active_keys.read().await;
-
         for _ in 0..100 {
             let Ok((idx1, idx2)) = self.random_idx().await else {
                 break; // Log outside loop
             };
-            println!("1");
+
             let key = (
                 self.prefix_words[idx1].clone(),
                 self.suffix_words[idx2].clone(),
             );
-            {
-                if !active_lock.contains(&key) {
-                    println!("2");
-                    drop(active_lock);
-                    let mut active_lock = self.active_keys.write().await;
-                    active_lock.insert(key.clone());
-                    return Ok(format!("{} {}", key.0, key.1));
-                }
+
+            if self.key_active(&key) {
+                continue;
             }
+
+            self.active_keys.insert(key.clone());
+            return Ok(format!("{} {}", key.0, key.1));
         }
 
-        let active_lock = self.active_keys.read().await;
         for i in 0..self.prefix_words.len() {
             for j in 0..self.suffix_words.len() {
-                println!("3");
                 let key = (
                     self.prefix_words[i].to_string(),
                     self.suffix_words[j].to_string(),
                 );
 
-                println!("4");
-                if !active_lock.contains(&key) {
-                    let mut active_lock = self.active_keys.write().await;
-                    active_lock.insert(key.clone());
-                    return Ok(format!("{} {}", key.0, key.1));
+                if self.key_active(&key) {
+                    continue;
                 }
+
+                self.active_keys.insert(key.clone());
+                return Ok(format!("{} {}", key.0, key.1));
             }
         }
 
