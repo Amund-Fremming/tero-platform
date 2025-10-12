@@ -136,8 +136,9 @@ async fn create_interactive_game(
     let client = state.get_client();
     let gs_client = state.get_gs_client();
     let vault = state.get_vault();
+    let pool = state.get_pool();
 
-    let key_word = vault.create_key(state.syslog()).await?;
+    let key_word = vault.create_key(pool)?;
 
     let payload = match game_type {
         GameType::Spin => {
@@ -200,12 +201,13 @@ async fn initiate_interactive_game(
     let client = state.get_client();
     let gs_client = state.get_gs_client();
     let vault = state.get_vault();
+    let pool = state.get_pool();
 
-    let key_word = vault.create_key(state.syslog()).await?;
+    let key_word = vault.create_key(pool)?;
 
     let payload = match game_type {
         GameType::Spin => {
-            let session = get_spin_session_by_game_id(state.get_pool(), user_id, game_id).await?;
+            let session = get_spin_session_by_game_id(pool, user_id, game_id).await?;
             session.to_json_value()?
         }
         _ => {
