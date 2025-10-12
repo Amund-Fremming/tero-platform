@@ -11,6 +11,10 @@
 - Make read before spin, it makes it simpler for the user to create games, less friction
 - Persist game session needs to be protected. Make singalR hub a integration, validate M2M Token
 
+## For FE
+
+- [ ] Possibility to view redirect config (for debugging)
+
 ## Tasklist
 
 **Setup**
@@ -54,15 +58,11 @@
 - [x] Create guest user
 - [x] Is valid token endpoint (also serves as user sync)
 - [x] User sync
-- [ ] Change webhook to use event streams from auth0
-- [ ] Handle all user events
-- [ ] Expand refresh token / jwt to be longer than an hour
 
 **M2M GameSession**
 - [x] Create M2M support for gamesession
 - [x] Support new Subject Integration
 - [x] Create and give out permissions
-- [ ] Create auth0 cached client for getting token from c#
 
 **Cache**
 - [x] Implement a generic cache wrapper and implementation for DRY principle for future games and caches
@@ -81,8 +81,7 @@
 - [x] Api for storing games to database from c#
 - [x] Api for creation of game, send to c# and client
 - [x] Api for game session creation, send to c# and client
-- [ ] Join game fn that needs to validate that a user can join a game before getting the url to connect
-- [ ] Error handling for client, game full/game does not exist ..
+- [x] Join game fn that needs to validate that a user can join a game before getting the url to connect
 
 **Universal Service**
 - [x] Pagination support
@@ -95,12 +94,12 @@
 - [x] Setup db handlers
 - [x] Implement core
 - [x] Strategy for removing no longer used slugs
-- [ ] Strategy for cron job, could be errors that make keys stay forever
+- [x] Strategy for cron job, could be errors that make keys stay forever
 
 **Admin**
 - [x] Delete games
 - [x] Endponints for user history, how many active last week, last month and today
-- [ ] Possibility to view config like redirect (for debugging)
+- [ ] Read config endpoint for debugging 
 
 **Store games**
 - [x] Model relations table for a registered user to persist games they have played
@@ -120,6 +119,7 @@
 - [ ] Create a http client for talking to rust
 - [ ] Create api in c# for consuming games from rust
 - [ ] Create or add a cache solution for storing game sessions
+- [ ] Create auth0 cached client for getting token from c#
 - [ ] Add core game logic in c# project
 
 **Notifications**
@@ -128,6 +128,10 @@
 - [ ] endpoint for admins to create alerts
 
 **Cleanup/refactor**
+- [ ] Change admin routes to own router and files (maybe also for auth and user?)
+- [ ] Change webhook to use event streams from auth0, and handle events
+- [ ] Expand refresh token / jwt to be longer than an hour
+- [ ] Error handling for client, game full/game does not exist ..
 - [ ] Optimize db queries by doing with tokio joins
 - [ ] Dynamic query builders, make a service that does this with builder pattern, now its super ugly everywhere, and hard to read
 - [ ] Some generic code for paginated queries

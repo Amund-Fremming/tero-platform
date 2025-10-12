@@ -37,6 +37,7 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
         .route("/list", get(list_all_users))
         .route("/valid-token", get(validate_token))
         .route("/stats", get(get_user_activity_stats))
+        .route("/config", get(get_config))
         .route("/activity/{user_id}", put(patch_user_activity))
         .with_state(state)
 }
@@ -225,4 +226,19 @@ async fn get_user_activity_stats(
     let stats = db::get_user_activity_stats(state.get_pool()).await?;
 
     Ok((StatusCode::OK, Json(stats)))
+}
+
+async fn get_config(
+    Extension(subject_id): Extension<SubjectId>,
+    Extension(claims): Extension<Claims>,
+) -> Result<impl IntoResponse, ServerError> {
+    let SubjectId::Registered(_) = subject_id else {
+        return Err(ServerError::AccessDenied);
+    };
+
+    if let Some(missing) = claims.missing_permission([Permission::ReadAdmin]) {
+        return Err(ServerError::Permission(missing));
+    }
+
+    Ok(())
 }
