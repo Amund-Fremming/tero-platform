@@ -17,7 +17,7 @@ pub struct SystemLog {
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "ceverity", rename_all = "lowercase")]
+#[sqlx(type_name = "log_ceverity", rename_all = "lowercase")]
 pub enum LogCeverity {
     Critical,
     Warning,
@@ -35,7 +35,7 @@ impl fmt::Display for LogCeverity {
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "action", rename_all = "lowercase")]
+#[sqlx(type_name = "log_action", rename_all = "lowercase")]
 pub enum Action {
     Create,
     Read,
