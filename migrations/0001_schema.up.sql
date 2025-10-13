@@ -38,7 +38,6 @@ CREATE TYPE user_type AS ENUM (
 
 CREATE TYPE game_category AS ENUM (
     'casual',
-    'random'
     'ladies',
     'boys',
     'default'
@@ -127,17 +126,33 @@ CREATE TABLE "spin_game" (
 CREATE INDEX "idx_saved_game_id" ON "saved_game" ("id");
 CREATE INDEX "idx_saved_game_delete_keys" ON "saved_game" ("id", "user_id");
 
-CREATE INDEX "idx_system_log_ceverity" ON "system_log" ("ceverity");
+CREATE INDEX "idx_system_log_ceverity" ON "system_log" ("ceverity", "created_at" DESC);
+
+CREATE INDEX "idx_integration_subject" ON "integration" ("subject");
 
 CREATE INDEX "idx_quiz_game_id" ON "quiz_game" ("id");
 
 CREATE INDEX "idx_spin_game_id" ON "spin_game" ("id");
 
 CREATE INDEX "idx_game_base_id" ON "game_base" ("id");
-CREATE INDEX "idx_game_base_game_type" ON "game_base" ("game_type");
-CREATE INDEX "idx_game_base_type_and_category" ON "game_base" ("game_type", "category");
+CREATE INDEX "idx_game_base_game_type" ON "game_base" ("game_type", "times_played" DESC);
+CREATE INDEX "idx_game_base_type_and_category" ON "game_base" ("game_type", "category", "times_played" DESC);
 
 CREATE INDEX "idx_user_id" ON "user" ("id");
 CREATE INDEX "idx_user_auth0_id" ON "user" ("auth0_id");
-CREATE INDEX "idx_user_last_active" ON "user" ("last_active");
+CREATE INDEX "idx_user_guest_id" ON "user" ("guest_id");
+CREATE INDEX "idx_user_last_active" ON "user" ("last_active" DESC);
 CREATE INDEX "idx_user_keys" ON "user" ("id", "auth0_id", "guest_id");
+
+
+ALTER TABLE "saved_game" ADD CONSTRAINT "fk_saved_game_user" 
+    FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE;
+
+ALTER TABLE "saved_game" ADD CONSTRAINT "fk_saved_game_base" 
+    FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;
+
+ALTER TABLE "quiz_game" ADD CONSTRAINT "fk_quiz_game_base" 
+    FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;
+
+ALTER TABLE "spin_game" ADD CONSTRAINT "fk_spin_game_base" 
+    FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;

@@ -123,19 +123,16 @@
 **Cleanup/refactor**
 - [x] Optimize db queries by doing with tokio joins
 - [x] Dynamic query builders, make a service that does this with builder pattern, now its super ugly everywhere, and hard to read
-
+- [x] Move cache inside this repo, add syslogs when fails
+- [x] Go over indexes and optimize
+- [x] Create relations where possible
+- [x] Cascades
 - [ ] Testing
-- [ ] Refactor route creation, split routers, only return one router per handler
-- [ ] Move cache inside this repo, add syslogs when fails
 
-- [ ] Go over indexes and optimize
-- [ ] Create relations where possible
-- [ ] Cascades
-    - if a game is deleted, games and base and saved relations need to be deleted
-
-- [ ] Change admin routes to own router and files (maybe also for auth and user?)
-- [ ] Change webhook to use event streams from auth0, and handle events
 - [ ] Expand refresh token / jwt to be longer than an hour
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)
 - [ ] One endpoint to get all admin related data: stats, popup, config ??
 - [ ] Error handling for client, game full/game does not exist ..
+
+**Maybe later**
+- [ ] Change webhook to use event streams from auth0, and handle events

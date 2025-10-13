@@ -3,7 +3,6 @@ use std::{sync::Arc, time::Duration};
 use serde_json::json;
 use tracing::{error, info};
 
-use gustcache::GustCache;
 use reqwest::Client;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
@@ -12,6 +11,7 @@ use crate::{
     auth::{db, models::Jwks},
     client::gs_client::GSClient,
     common::{
+        cache::GustCache,
         error::ServerError,
         key_vault::KeyVault,
         models::{PagedResponse, PopupManager},

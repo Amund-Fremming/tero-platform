@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::SystemTimeError};
 
 use axum::{http::StatusCode, response::IntoResponse};
 use thiserror::Error;
@@ -35,9 +35,6 @@ pub enum ServerError {
     #[error("JWT verification error: {0}")]
     JwtVerification(String),
 
-    #[error("Gust Cache error: {0}")]
-    Cache(#[from] gustcache::CacheError),
-
     #[error("Json error: {0}")]
     Json(#[from] serde_json::Error),
 
@@ -49,6 +46,9 @@ pub enum ServerError {
 
     #[error("KeyVault error: {0}")]
     KeyVaultError(#[from] KeyVaultError),
+
+    #[error("Failed to create system time: {0}")]
+    TimeCreation(#[from] SystemTimeError),
 }
 
 impl IntoResponse for ServerError {
@@ -96,10 +96,6 @@ impl IntoResponse for ServerError {
                 error!("Json error: {}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, String::new())
             }
-            ServerError::Cache(e) => {
-                error!("Gust Cache error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, String::new())
-            }
             ServerError::GSClientError(e) => {
                 error!("GSClient error: {}", e);
                 (
@@ -113,6 +109,10 @@ impl IntoResponse for ServerError {
             }
             ServerError::KeyVaultError(e) => {
                 error!("KeyVault error: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, String::new())
+            }
+            ServerError::TimeCreation(e) => {
+                error!("Failed to create system time: {:?}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, String::new())
             }
         }
