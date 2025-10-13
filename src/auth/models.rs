@@ -6,6 +6,12 @@ use uuid::Uuid;
 
 use crate::{game::models::Gender, integration::models::IntegrationName};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RestrictedConfig {
+    pub auth0_domain: String,
+    pub gs_domain: String,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Jwks {
     pub keys: [Jwk; 2],

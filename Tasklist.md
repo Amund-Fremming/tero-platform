@@ -85,28 +85,32 @@
 - [x] Endpoint for listing games
 - [x] Endpoint for removing relation
 
----
+**Admin**
+- [x] Delete games
+- [x] Endponints for user history, how many active last week, last month and today
+- [x] Read config endpoint for debugging 
 
 **System log**
 - [x] Enums for action and ceverity
 - [x] Implement and SQL migration
 - [x] Import integrations on startup to INTEGRAITON_IDS and INTEGRATION_NAMES
 - [x] api for gettings logs by filters/pagination
-- [ ] Add logs where neccesarry
-
-**Admin**
-- [x] Delete games
-- [x] Endponints for user history, how many active last week, last month and today
-- [ ] Read config endpoint for debugging 
+- [x] Add logs where neccesarry
 
 **Cache**
 - [x] Implement a generic cache wrapper and implementation for DRY principle for future games and caches
 - [x] Implement a generic cache for game search pages
 - [x] Expand search cache to support passing in functions to handle when its a cache miss
 - [x] Move cache out in its own reusable crate for future use
-- [ ] Change datetime to use secs from UNIC EPOCH
-- [ ] Use dashmap not hashset and locks
-- [ ] Verify that cache works
+- [x] Use dashmap not hashset and locks
+- [x] Change datetime to use secs from UNIC EPOCH
+
+**Notifications**
+- [x] Model a solution for storing alerts
+- [x] Remove notifications after some time to store data storage
+- [x] endpoint for admins to create alerts
+
+---
 
 **SignalR microservice**
 - [x] Create C# project with signal installed
@@ -116,12 +120,8 @@
 - [ ] Create auth0 cached client for getting token from c#
 - [ ] Add core game logic in c# project
 
-**Notifications**
-- [ ] Model a solution for storing alerts
-- [ ] Remove notifications after some time to store data storage
-- [ ] endpoint for admins to create alerts
-
 **Cleanup/refactor**
+- [ ] Refactor route creation, split routers, only return one router per handler
 - [ ] Change admin routes to own router and files (maybe also for auth and user?)
 - [ ] Change webhook to use event streams from auth0, and handle events
 - [ ] Expand refresh token / jwt to be longer than an hour
@@ -135,3 +135,6 @@
 - [ ] Create relations where possible
 - [ ] Cascades
     - if a game is deleted, games and base and saved relations need to be deleted
+- [ ] Move cache inside this repo, add syslogs when fails
+- One endpoint to get all admin related data: stats, popup, config ??
+- [ ] Testing

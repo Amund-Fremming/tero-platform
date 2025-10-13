@@ -26,8 +26,7 @@ pub async fn delete_non_active_games(pool: &Pool<Postgres>) -> Result<(), sqlx::
 
 pub async fn get_game_page(
     pool: &Pool<Postgres>,
-    game_type: GameType,
-    request: GamePageQuery,
+    request: &GamePageQuery,
 ) -> Result<PagedResponse<GameBase>, sqlx::Error> {
     let page_size = CONFIG.server.page_size as u16;
     let games = DBQueryBuilder::select(
@@ -44,8 +43,8 @@ pub async fn get_game_page(
             "#,
     )
     .from("game_base")
-    .r#where("game_type", game_type)
-    .where_opt("category", request.category)
+    .r#where("game_type", &request.game_type)
+    .where_opt("category", &request.category)
     .offset(page_size * request.page_num)
     .limit(page_size + 1)
     .order_desc("times_played")

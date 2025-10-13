@@ -25,9 +25,9 @@ pub async fn get_system_log_page(
         "#,
     )
     .from("system_log")
-    .where_opt("subject_type", request.subject_type)
-    .where_opt("action", request.action)
-    .where_opt("ceverity", request.ceverity)
+    .where_opt("subject_type", &request.subject_type)
+    .where_opt("action", &request.action)
+    .where_opt("ceverity", &request.ceverity)
     .offset(page_size * request.page_num)
     .limit(page_size + 1)
     .order_desc("created_at")

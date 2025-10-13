@@ -35,11 +35,11 @@ use crate::{
 
 pub fn game_routes(state: Arc<AppState>) -> Router {
     let generic_routes = Router::new()
-        .route("/{game_type}/page", post(get_game_page))
+        .route("/page", post(get_game_page))
         .route("/{game_type}/create", post(create_interactive_game))
         .route("/{game_type}/{game_id}", delete(delete_game))
         .route("/{game_type}/free-key/{key_word}", patch(free_game_key))
-        .route("/{game_type}/save/{game_id}", post(save_game))
+        .route("/{game_type}/save/{game_id}", post(user_save_game))
         .route("/{game_type}/unsave/{game_id}", delete(delete_saved_game))
         .route("/saved", get(get_saved_games_page))
         .with_state(state.clone());
@@ -154,7 +154,7 @@ async fn create_interactive_game(
     let envelope = GameEnvelope {
         game_type: game_type.clone(),
         host_id: user_id,
-        key_word: key_word.clone(),
+        game_key: key_word.clone(),
         payload,
     };
 
@@ -221,7 +221,7 @@ async fn initiate_interactive_game(
     let envelope = GameEnvelope {
         game_type: game_type.clone(),
         host_id: user_id,
-        key_word: key_word.clone(),
+        game_key: key_word.clone(),
         payload,
     };
 
@@ -237,19 +237,23 @@ async fn initiate_interactive_game(
     Ok((StatusCode::OK, Json(response)))
 }
 
-// TODO - add cache when it works and is teste
 async fn get_game_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path(game_type): Path<GameType>,
     Json(request): Json<GamePageQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
     if let SubjectId::Integration(_) = subject_id {
         return Err(ServerError::AccessDenied);
     }
 
-    let response = db::get_game_page(state.get_pool(), game_type, request).await?;
-    Ok((StatusCode::OK, Json(response)))
+    let pool = state.get_pool();
+    let cache = state.get_cache();
+
+    let page = cache
+        .get_or(&request, || db::get_game_page(pool, &request))
+        .await?;
+
+    Ok((StatusCode::OK, Json(page)))
 }
 
 pub async fn persist_standalone_game(
@@ -296,7 +300,20 @@ async fn persist_interactive_game(
         return Err(ServerError::Permission(missing));
     }
 
+    let words: Vec<&str> = request.game_key.split(" ").collect();
+    let tuple = match (words.get(0), words.get(1)) {
+        (Some(prefix), Some(suffix)) => (prefix.to_string(), suffix.to_string()),
+        _ => {
+            return Err(ServerError::Api(
+                StatusCode::BAD_REQUEST,
+                "Key word in invalid format".into(),
+            ));
+        }
+    };
+
+    state.get_vault().remove_key(tuple);
     let pool = state.get_pool();
+
     match request.game_type {
         GameType::Spin => {
             let session: SpinSession = serde_json::from_value(request.payload)?;
@@ -348,7 +365,7 @@ async fn free_game_key(
     Ok(StatusCode::OK)
 }
 
-async fn save_game(
+async fn user_save_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Path((game_type, base_id)): Path<(GameType, Uuid)>,

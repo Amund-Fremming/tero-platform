@@ -9,6 +9,7 @@ use tracing::error;
 use crate::{
     common::{app_state::AppState, error::ServerError},
     health::db,
+    system_log::models::{Action, LogCeverity},
 };
 
 pub fn health_routes(state: Arc<AppState>) -> Router {
@@ -36,6 +37,14 @@ async fn health_detailed(
         Ok(_) => "healthy".to_string(),
         Err(e) => {
             error!("Failed game session health check: {}", e);
+            state
+                .syslog()
+                .action(Action::Other)
+                .ceverity(LogCeverity::Critical)
+                .function("health_check")
+                .description("Failed health check on tero-session")
+                .log_async();
+
             "unhealthy".to_string()
         }
     };

@@ -13,9 +13,13 @@ use uuid::Uuid;
 use crate::{
     auth::{
         db::{self},
-        models::{Auth0User, Claims, EnsureGuestQuery, Permission, PutUserRequest, SubjectId},
+        models::{
+            Auth0User, Claims, EnsureGuestQuery, Permission, PutUserRequest, RestrictedConfig,
+            SubjectId,
+        },
     },
-    common::{app_state::AppState, error::ServerError},
+    common::{app_state::AppState, error::ServerError, models::ClientPopup},
+    config::config::CONFIG,
     system_log::models::{Action, LogCeverity, SubjectType},
 };
 
@@ -38,6 +42,7 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
         .route("/valid-token", get(validate_token))
         .route("/stats", get(get_user_activity_stats))
         .route("/config", get(get_config))
+        .route("/popup", put(update_client_popup))
         .route("/activity/{user_id}", put(patch_user_activity))
         .with_state(state)
 }
@@ -80,9 +85,9 @@ async fn validate_token(
     Extension(subject_id): Extension<SubjectId>,
 ) -> Result<impl IntoResponse, ServerError> {
     let valid_type = match subject_id {
-        SubjectId::Guest(_) => SubjectType::GuestUser,
         SubjectId::Registered(_) => SubjectType::RegisteredUser,
         SubjectId::Integration(_) => SubjectType::Integration,
+        _ => return Err(ServerError::AccessDenied),
     };
 
     Ok((StatusCode::OK, Json(valid_type)))
@@ -134,7 +139,6 @@ async fn patch_user(
     }
 
     db::patch_user_by_id(state.get_pool(), &actual_user_id, put_request).await?;
-
     Ok(StatusCode::OK)
 }
 
@@ -224,7 +228,6 @@ async fn get_user_activity_stats(
     }
 
     let stats = db::get_user_activity_stats(state.get_pool()).await?;
-
     Ok((StatusCode::OK, Json(stats)))
 }
 
@@ -240,5 +243,30 @@ async fn get_config(
         return Err(ServerError::Permission(missing));
     }
 
-    Ok(())
+    let config = RestrictedConfig {
+        auth0_domain: CONFIG.auth0.domain.clone(),
+        gs_domain: CONFIG.server.gs_domain.clone(),
+    };
+
+    Ok((StatusCode::OK, Json(config)))
+}
+
+async fn update_client_popup(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Extension(claims): Extension<Claims>,
+    Json(payload): Json<ClientPopup>,
+) -> Result<impl IntoResponse, ServerError> {
+    let SubjectId::Registered(_user_id) = subject_id else {
+        return Err(ServerError::AccessDenied);
+    };
+
+    if let Some(missing) = claims.missing_permission([Permission::WriteAdmin]) {
+        return Err(ServerError::Permission(missing));
+    }
+
+    let manager = state.get_popup_manager();
+    let popup = manager.update(payload).await?;
+
+    Ok((StatusCode::OK, Json(popup)))
 }

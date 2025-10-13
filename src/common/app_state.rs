@@ -11,7 +11,11 @@ use uuid::Uuid;
 use crate::{
     auth::{db, models::Jwks},
     client::gs_client::GSClient,
-    common::{error::ServerError, key_vault::KeyVault, models::PagedResponse},
+    common::{
+        error::ServerError,
+        key_vault::KeyVault,
+        models::{PagedResponse, PopupManager},
+    },
     config::config::CONFIG,
     game::{db::delete_non_active_games, models::GameBase},
     system_log::{
@@ -26,8 +30,9 @@ pub struct AppState {
     jwks: Jwks,
     client: Client,
     gs_client: GSClient,
-    page_cache: Arc<GustCache<Vec<PagedResponse<GameBase>>>>,
+    page_cache: Arc<GustCache<PagedResponse<GameBase>>>,
     key_vault: Arc<KeyVault>,
+    popup_manager: PopupManager,
 }
 
 impl AppState {
@@ -39,8 +44,9 @@ impl AppState {
         let jwks_url = format!("{}.well-known/jwks.json", CONFIG.auth0.domain);
         let response = client.get(jwks_url).send().await?;
         let jwks = response.json::<Jwks>().await?;
-        let page_cache = Arc::new(GustCache::from_ttl(chrono::Duration::minutes(2)));
+        let page_cache = Arc::new(GustCache::from_ttl(120));
         let key_vault = Arc::new(KeyVault::load_words(&pool).await?);
+        let popup_manager = PopupManager::new();
 
         let state = Arc::new(Self {
             pool,
@@ -49,6 +55,7 @@ impl AppState {
             gs_client,
             page_cache,
             key_vault,
+            popup_manager,
         });
 
         Ok(state)
@@ -62,7 +69,7 @@ impl AppState {
         &self.jwks
     }
 
-    pub fn get_cache(&self) -> &Arc<GustCache<Vec<PagedResponse<GameBase>>>> {
+    pub fn get_cache(&self) -> &Arc<GustCache<PagedResponse<GameBase>>> {
         &self.page_cache
     }
 
@@ -80,6 +87,10 @@ impl AppState {
 
     pub fn get_vault(&self) -> &KeyVault {
         &self.key_vault
+    }
+
+    pub fn get_popup_manager(&self) -> &PopupManager {
+        &self.popup_manager
     }
 
     pub fn spawn_game_cleanup(&self) {

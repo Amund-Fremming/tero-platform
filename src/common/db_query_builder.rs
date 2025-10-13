@@ -21,7 +21,7 @@ impl<'a> DBQueryBuilder<'a> {
         self
     }
 
-    pub fn r#where<T>(mut self, field: &str, value: T) -> Self
+    pub fn r#where<T>(mut self, field: &str, value: &T) -> Self
     where
         T: fmt::Display,
     {
@@ -40,7 +40,7 @@ impl<'a> DBQueryBuilder<'a> {
         self
     }
 
-    pub fn where_opt<T>(mut self, field: &str, value: Option<T>) -> Self
+    pub fn where_opt<T>(mut self, field: &str, value: &Option<T>) -> Self
     where
         T: fmt::Display,
     {

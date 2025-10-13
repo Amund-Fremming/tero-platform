@@ -73,6 +73,7 @@ impl fmt::Display for GameType {
 #[derive(Debug, Serialize, Deserialize, Hash)]
 pub struct GamePageQuery {
     pub page_num: u16,
+    pub game_type: GameType,
     pub category: Option<GameCategory>,
 }
 
@@ -83,7 +84,7 @@ pub struct SavedGamePageQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameEnvelope {
-    pub key_word: String,
+    pub game_key: String,
     pub host_id: Uuid,
     pub game_type: GameType,
     pub payload: serde_json::Value,
