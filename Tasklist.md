@@ -1,19 +1,9 @@
 # Tasklist
 
-## Quick notes
-
-- keyvault stuck at 100 keys
-    - place in db
-    - generate cross keys
-    - refill logic is flawed, it does not handle stuck keys, this will need a timeout
-
-- read before spin blir random, mindre for bruker å velge
-- Make read before spin, it makes it simpler for the user to create games, less friction
-- Persist game session needs to be protected. Make singalR hub a integration, validate M2M Token
-
 ## For FE
 
-- [ ] Possibility to view redirect config (for debugging)
+- Possibility to view redirect config (for debugging)
+- Read before spin needs to be random or not visible to the user, to much to click on
 
 ## Tasklist
 
@@ -64,13 +54,6 @@
 - [x] Support new Subject Integration
 - [x] Create and give out permissions
 
-**Cache**
-- [x] Implement a generic cache wrapper and implementation for DRY principle for future games and caches
-- [x] Implement a generic cache for game search pages
-- [x] Expand search cache to support passing in functions to handle when its a cache miss
-- [x] Move cache out in its own reusable crate for future use
-- [ ] Verify that cache works
-
 **Generic feature**
 - [x] Typed search in a handler
 - [x] GenericGameService with GetGame, Typed Search
@@ -96,16 +79,13 @@
 - [x] Strategy for removing no longer used slugs
 - [x] Strategy for cron job, could be errors that make keys stay forever
 
-**Admin**
-- [x] Delete games
-- [x] Endponints for user history, how many active last week, last month and today
-- [ ] Read config endpoint for debugging 
-
 **Store games**
 - [x] Model relations table for a registered user to persist games they have played
 - [x] Endpoint for persisting a game
 - [x] Endpoint for listing games
 - [x] Endpoint for removing relation
+
+---
 
 **System log**
 - [x] Enums for action and ceverity
@@ -113,6 +93,20 @@
 - [x] Import integrations on startup to INTEGRAITON_IDS and INTEGRATION_NAMES
 - [x] api for gettings logs by filters/pagination
 - [ ] Add logs where neccesarry
+
+**Admin**
+- [x] Delete games
+- [x] Endponints for user history, how many active last week, last month and today
+- [ ] Read config endpoint for debugging 
+
+**Cache**
+- [x] Implement a generic cache wrapper and implementation for DRY principle for future games and caches
+- [x] Implement a generic cache for game search pages
+- [x] Expand search cache to support passing in functions to handle when its a cache miss
+- [x] Move cache out in its own reusable crate for future use
+- [ ] Change datetime to use secs from UNIC EPOCH
+- [ ] Use dashmap not hashset and locks
+- [ ] Verify that cache works
 
 **SignalR microservice**
 - [x] Create C# project with signal installed

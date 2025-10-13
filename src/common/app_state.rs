@@ -1,8 +1,4 @@
-use std::{
-    env,
-    sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::{sync::Arc, time::Duration};
 
 use serde_json::json;
 use tracing::{error, info};
@@ -107,13 +103,12 @@ impl AppState {
     }
 
     pub fn sync_user(&self, user_id: Uuid, guest_id: Uuid) {
-        let state = self.clone();
+        let pool = self.get_pool().clone();
 
         tokio::spawn(async move {
-            let Ok(mut tx) = state.get_pool().begin().await else {
+            let Ok(mut tx) = pool.begin().await else {
                 error!("Failed to start database transaction");
-                state
-                    .syslog()
+                SystemLogBuilder::new(&pool)
                     .action(Action::Other)
                     .ceverity(LogCeverity::Critical)
                     .description("Failed to start database transaction")
@@ -128,17 +123,33 @@ impl AppState {
                     "Failed to sync user with user_id: {}, and guest_id: {}",
                     user_id, guest_id
                 );
-                state
-                    .syslog()
+
+                SystemLogBuilder::new(&pool)
                     .action(Action::Sync)
                     .ceverity(LogCeverity::Critical)
                     .description(&msg)
+                    .metadata(json!({
+                        "error": e.to_string()
+                    }))
                     .log_async();
 
                 return;
             }
 
-            tx.commit().await;
+            if let Err(e) = tx.commit().await {
+                error!("Failed to commit database transaction");
+                SystemLogBuilder::new(&pool)
+                    .action(Action::Sync)
+                    .ceverity(LogCeverity::Critical)
+                    .description("Failed to commit transaction in sync job")
+                    .metadata(json!({
+                        "error": e.to_string()
+                    }))
+                    .log_async();
+
+                return;
+            };
+
             info!("User was synced successfully");
         });
     }
