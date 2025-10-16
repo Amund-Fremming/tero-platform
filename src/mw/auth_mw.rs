@@ -137,7 +137,8 @@ async fn handle_user_token(
 
     if Some(guest_id) != user_keys.guest_id {
         info!("Starting user sync for user id: {}", user_keys.user_id);
-        state.sync_user(user_keys.user_id, guest_id);
+        // TODO TURN ON SYNC
+        //state.sync_user(user_keys.user_id, guest_id);
     }
 
     let subject = SubjectId::Registered(user_keys.user_id);

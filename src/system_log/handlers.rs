@@ -26,6 +26,7 @@ pub fn log_routes(state: Arc<AppState>) -> Router {
         .with_state(state)
 }
 
+// NOT TESTED
 async fn get_system_log_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -45,6 +46,7 @@ async fn get_system_log_page(
     Ok((StatusCode::OK, Json(page)))
 }
 
+// NOT TESTED
 async fn create_system_log(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,

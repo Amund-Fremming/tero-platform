@@ -53,9 +53,9 @@ pub async fn get_user_id_from_guest_id(
 ) -> Result<Option<Uuid>, sqlx::Error> {
     sqlx::query_scalar(
         r#"
-        SELECT user_id
+        SELECT id
         FROM "user"
-        WHERE guest_id = &1
+        WHERE guest_id = $1
         "#,
     )
     .bind(guest_id)
@@ -92,10 +92,17 @@ pub async fn get_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,
 ) -> Result<Option<User>, sqlx::Error> {
-    sqlx::query_as::<_, User>(r#"SELECT * FROM "user" WHERE id = $1"#)
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await
+    sqlx::query_as::<_, User>(
+        r#"
+        SELECT id, auth0_id, guest_id, user_type, last_active, birth_date, gender, email,
+            email_verified, family_name, "updated_at", "given_name", "created_at"
+        FROM "user"
+        WHERE id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
 }
 
 pub async fn guest_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, sqlx::Error> {
@@ -107,7 +114,7 @@ pub async fn guest_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, 
     Ok(exists.is_some())
 }
 
-pub async fn create_guest_user(pool: &Pool<Postgres>) -> Result<Uuid, sqlx::Error> {
+pub async fn create_guest_user(pool: &Pool<Postgres>) -> Result<Uuid, ServerError> {
     let row = sqlx::query(
         r#"
         INSERT INTO "user" (guest_id, user_type, last_active)
@@ -120,6 +127,10 @@ pub async fn create_guest_user(pool: &Pool<Postgres>) -> Result<Uuid, sqlx::Erro
     .bind(Utc::now())
     .fetch_one(pool)
     .await?;
+
+    if row.len() == 0 {
+        return Err(ServerError::Internal("Failed to create guest id".into()));
+    }
 
     let guest_id = row.get("guest_id");
     Ok(guest_id)

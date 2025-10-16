@@ -87,17 +87,17 @@ CREATE TABLE "integration" (
 CREATE TABLE "user" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "auth0_id" VARCHAR,
-    "guest_id" VARCHAR,
+    "guest_id" UUID,
     "user_type" user_type NOT NULL DEFAULT 'guest',
     "last_active" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "birth_date" DATE,
-    "gender" gender,
+    "gender" gender NOT NULL DEFAULT 'u',
     "email" VARCHAR(150),
     "email_verified" BOOLEAN,
     "family_name" VARCHAR(100),
-    "updated_at" TIMESTAMPTZ,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "given_name" VARCHAR(100),
-    "created_at" TIMESTAMPTZ
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE "game_base" (

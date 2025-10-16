@@ -32,12 +32,7 @@ pub fn public_auth_routes(state: Arc<AppState>) -> Router {
 pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(get_user_from_subject))
-        .route(
-            "/{user_id}",
-            patch(patch_user)
-                .delete(delete_user)
-                .post(auth0_trigger_endpoint),
-        )
+        .route("/{user_id}", patch(patch_user).delete(delete_user))
         .route("/list", get(list_all_users))
         .route("/valid-token", get(validate_token))
         .route("/stats", get(get_user_activity_stats))
@@ -47,6 +42,7 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
         .with_state(state)
 }
 
+// NOT TESTED
 async fn get_user_from_subject(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -81,6 +77,7 @@ async fn get_user_from_subject(
     Ok((StatusCode::OK, Json(user)))
 }
 
+// NOT TESTED
 async fn validate_token(
     Extension(subject_id): Extension<SubjectId>,
 ) -> Result<impl IntoResponse, ServerError> {
@@ -93,6 +90,7 @@ async fn validate_token(
     Ok((StatusCode::OK, Json(valid_type)))
 }
 
+// NOT TESTED
 async fn ensure_guest_user(
     State(state): State<Arc<AppState>>,
     Query(query): Query<EnsureGuestQuery>,
@@ -101,10 +99,11 @@ async fn ensure_guest_user(
         None => db::create_guest_user(state.get_pool()).await?,
         Some(mut guest_id) => {
             let exists = db::guest_user_exists(state.get_pool(), guest_id).await?;
-            if !exists {
-                guest_id = db::create_guest_user(state.get_pool()).await?;
+            if exists {
+                return Ok((StatusCode::OK, Json(guest_id)));
             }
 
+            guest_id = db::create_guest_user(state.get_pool()).await?;
             guest_id
         }
     };
@@ -112,6 +111,7 @@ async fn ensure_guest_user(
     Ok((StatusCode::CREATED, Json(guest_id)))
 }
 
+// NOT TESTED
 async fn patch_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
@@ -142,6 +142,7 @@ async fn patch_user(
     Ok(StatusCode::OK)
 }
 
+// NOT TESTED
 async fn delete_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
@@ -166,6 +167,7 @@ async fn delete_user(
     Ok(StatusCode::OK)
 }
 
+// NOT TESTED
 async fn patch_user_activity(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -179,13 +181,14 @@ async fn patch_user_activity(
     Ok(StatusCode::OK)
 }
 
+// NOT TESTED
 // TODO - delete
 pub async fn auth0_trigger_endpoint(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
     Json(auth0_user): Json<Auth0User>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Integration(_) = subject else {
+    let SubjectId::Integration(_intname) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
@@ -195,6 +198,7 @@ pub async fn auth0_trigger_endpoint(
     Ok(())
 }
 
+// NOT TESTED
 pub async fn list_all_users(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -212,6 +216,7 @@ pub async fn list_all_users(
     Ok((StatusCode::OK, Json(users)))
 }
 
+// NOT TESTED
 async fn get_user_activity_stats(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -231,6 +236,7 @@ async fn get_user_activity_stats(
     Ok((StatusCode::OK, Json(stats)))
 }
 
+// NOT TESTED
 async fn get_config(
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
@@ -251,6 +257,7 @@ async fn get_config(
     Ok((StatusCode::OK, Json(config)))
 }
 
+// NOT TESTED
 async fn update_client_popup(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,

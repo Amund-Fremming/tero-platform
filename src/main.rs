@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use axum::{Router, middleware::from_fn_with_state};
+use axum::{Router, middleware::from_fn_with_state, routing::post};
 use dotenv::dotenv;
 use sqlx::{Pool, Postgres};
 use tracing::{error, info, level_filters::LevelFilter};
@@ -8,7 +8,7 @@ use tracing_subscriber::FmtSubscriber;
 use uuid::Uuid;
 
 use crate::{
-    auth::handlers::{protected_auth_routes, public_auth_routes},
+    auth::handlers::{auth0_trigger_endpoint, protected_auth_routes, public_auth_routes},
     common::{app_state::AppState, error::ServerError},
     config::config::CONFIG,
     game::handlers::game_routes,
@@ -17,7 +17,7 @@ use crate::{
         db,
         models::{INTEGRATION_IDS, INTEGRATION_NAMES, IntegrationName},
     },
-    mw::auth_mw::auth_mw,
+    mw::{auth_mw::auth_mw, webhook_mw::webhook_mw},
     system_log::handlers::log_routes,
 };
 
@@ -65,6 +65,15 @@ async fn main() {
         return;
     }
 
+    let event_routes = Router::new()
+        .nest(
+            "/events",
+            Router::new()
+                .route("/", post(auth0_trigger_endpoint))
+                .with_state(state.clone()),
+        )
+        .layer(from_fn_with_state(state.clone(), webhook_mw));
+
     let public_routes = Router::new()
         .nest("/health", health_routes(state.clone()))
         .nest("/guest", public_auth_routes(state.clone()))
@@ -75,7 +84,10 @@ async fn main() {
         .nest("/user", protected_auth_routes(state.clone()))
         .layer(from_fn_with_state(state.clone(), auth_mw));
 
-    let app = Router::new().merge(protected_routes).merge(public_routes);
+    let app = Router::new()
+        .merge(protected_routes)
+        .merge(public_routes)
+        .merge(event_routes);
 
     // Initialize webserver
     let listener =

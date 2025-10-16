@@ -67,6 +67,7 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
         .nest("/session", interactive_routes)
 }
 
+// NOT TESTED
 async fn delete_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -85,6 +86,7 @@ async fn delete_game(
     Ok(StatusCode::OK)
 }
 
+// NOT TESTED
 async fn join_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -122,6 +124,7 @@ async fn join_interactive_game(
     Ok((StatusCode::OK, Json(response)))
 }
 
+// NOT TESTED
 async fn create_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -170,6 +173,7 @@ async fn create_interactive_game(
     Ok((StatusCode::CREATED, Json(response)))
 }
 
+// NOT TESTED
 async fn initiate_standalone_game(
     State(state): State<Arc<AppState>>,
     Extension(_subject_id): Extension<SubjectId>,
@@ -188,6 +192,7 @@ async fn initiate_standalone_game(
     return Ok((StatusCode::OK, Json(response)));
 }
 
+// NOT TESTED
 async fn initiate_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -237,6 +242,7 @@ async fn initiate_interactive_game(
     Ok((StatusCode::OK, Json(response)))
 }
 
+// NOT TESTED
 async fn get_game_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -256,6 +262,7 @@ async fn get_game_page(
     Ok((StatusCode::OK, Json(page)))
 }
 
+// NOT TESTED
 pub async fn persist_standalone_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -284,6 +291,7 @@ pub async fn persist_standalone_game(
     Ok(StatusCode::CREATED)
 }
 
+// NOT TESTED
 // Only called from tero-session
 async fn persist_interactive_game(
     State(state): State<Arc<AppState>>,
@@ -335,6 +343,7 @@ async fn persist_interactive_game(
     return Ok(StatusCode::CREATED);
 }
 
+// NOT TESTED
 async fn free_game_key(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -365,6 +374,7 @@ async fn free_game_key(
     Ok(StatusCode::OK)
 }
 
+// NOT TESTED
 async fn user_save_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -379,6 +389,7 @@ async fn user_save_game(
     Ok(StatusCode::CREATED)
 }
 
+// NOT TESTED
 async fn delete_saved_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -393,6 +404,7 @@ async fn delete_saved_game(
     Ok(StatusCode::NO_CONTENT)
 }
 
+// NOT TESTED
 async fn get_saved_games_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,

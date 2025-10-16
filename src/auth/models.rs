@@ -48,8 +48,8 @@ pub enum Permission {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    gty: String,
-    aud: String,
+    gty: Option<String>,
+    aud: Vec<String>,
     azp: String,
     exp: i32,
     iat: i32,
@@ -62,8 +62,8 @@ pub struct Claims {
 impl Claims {
     pub fn empty() -> Self {
         Self {
-            gty: String::new(),
-            aud: String::new(),
+            gty: None,
+            aud: Vec::new(),
             azp: String::new(),
             exp: 0,
             iat: 0,
@@ -75,7 +75,7 @@ impl Claims {
     }
 
     pub fn is_machine(&self) -> bool {
-        self.gty == "client-credentials"
+        self.gty == Some("client-credentials".to_string())
     }
 
     pub fn auth0_id(&self) -> &str {
