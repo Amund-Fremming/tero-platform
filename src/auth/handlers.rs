@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, patch, post, put},
+    routing::{delete, get, patch, post, put},
 };
 use tracing::{error, info};
 use uuid::Uuid;
@@ -14,7 +14,7 @@ use crate::{
     auth::{
         db::{self},
         models::{
-            Auth0User, Claims, EnsureGuestQuery, Permission, PutUserRequest, RestrictedConfig,
+            Auth0User, Claims, EnsureGuestQuery, PatchUserRequest, Permission, RestrictedConfig,
             SubjectId,
         },
     },
@@ -31,18 +31,17 @@ pub fn public_auth_routes(state: Arc<AppState>) -> Router {
 
 pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/", get(get_user_from_subject))
-        .route("/{user_id}", patch(patch_user).delete(delete_user))
+        .route("/", get(get_user_from_subject).patch(patch_user))
+        .route("/{user_id}", delete(delete_user))
         .route("/list", get(list_all_users))
         .route("/valid-token", get(validate_token))
         .route("/stats", get(get_user_activity_stats))
         .route("/config", get(get_config))
         .route("/popup", put(update_client_popup))
-        .route("/activity/{user_id}", put(patch_user_activity))
+        .route("/activity", patch(patch_user_activity))
         .with_state(state)
 }
 
-// NOT TESTED
 async fn get_user_from_subject(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -90,7 +89,6 @@ async fn validate_token(
     Ok((StatusCode::OK, Json(valid_type)))
 }
 
-// NOT TESTED
 async fn ensure_guest_user(
     State(state): State<Arc<AppState>>,
     Query(query): Query<EnsureGuestQuery>,
@@ -116,29 +114,23 @@ async fn patch_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
-    Path(user_id): Path<Uuid>,
-    Json(put_request): Json<PutUserRequest>,
+    Json(request): Json<PatchUserRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(actual_user_id) = subject else {
+    let SubjectId::Registered(user_id) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
     if let None = claims.missing_permission([Permission::WriteAdmin]) {
-        db::patch_user_by_id(state.get_pool(), &user_id, put_request).await?;
+        db::patch_user_by_id(state.get_pool(), &user_id, request).await?;
         return Ok(StatusCode::OK);
     }
 
-    if actual_user_id != user_id {
-        return Err(ServerError::AccessDenied);
-    }
-
-    if put_request.name.is_none() && put_request.email.is_none() && put_request.birth_date.is_none()
-    {
+    if request.name.is_none() && request.email.is_none() && request.birth_date.is_none() {
         info!("User tried patching without a payload");
         return Ok(StatusCode::OK);
     }
 
-    db::patch_user_by_id(state.get_pool(), &actual_user_id, put_request).await?;
+    db::patch_user_by_id(state.get_pool(), &user_id, request).await?;
     Ok(StatusCode::OK)
 }
 
@@ -163,7 +155,6 @@ async fn delete_user(
     }
 
     db::delete_user_by_id(state.get_pool(), &actual_user_id).await?;
-
     Ok(StatusCode::OK)
 }
 
@@ -173,8 +164,9 @@ async fn patch_user_activity(
     Extension(subject_id): Extension<SubjectId>,
     Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(user_id) = subject_id else {
-        return Err(ServerError::AccessDenied);
+    let user_id = match subject_id {
+        SubjectId::Registered(id) | SubjectId::Guest(id) => id,
+        _ => return Err(ServerError::AccessDenied),
     };
 
     db::update_user_activity(state.get_pool(), user_id).await?;

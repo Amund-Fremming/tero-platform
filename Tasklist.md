@@ -127,7 +127,10 @@
 - [x] Go over indexes and optimize
 - [x] Create relations where possible
 - [x] Cascades
-- [ ] Testing
+- [ ] Rethink the user sync, maybe use the usertype with id, and never user guest_id. Easier lookups, faster, maybe the best solution? messy now, clients need two params every time
+- [ ] query params, limit offset on lsit users
+- [ ] Patch user needs update
+- [ ] delete user needs to delete auth0 user also
 
 - [ ] Expand refresh token / jwt to be longer than an hour
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)

@@ -86,6 +86,7 @@ CREATE TABLE "integration" (
 
 CREATE TABLE "user" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "username" VARCHAR (100) NOT NULL,
     "auth0_id" VARCHAR,
     "guest_id" UUID,
     "user_type" user_type NOT NULL DEFAULT 'guest',

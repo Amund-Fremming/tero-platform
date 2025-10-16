@@ -5,10 +5,11 @@ use uuid::Uuid;
 
 use crate::{
     auth::models::{
-        ActivityStats, Auth0User, AverageUserStats, PutUserRequest, RecentUserStats, User,
+        ActivityStats, Auth0User, AverageUserStats, PatchUserRequest, RecentUserStats, User,
         UserKeys, UserType,
     },
     common::error::ServerError,
+    game::models::Gender,
 };
 
 pub async fn tx_sync_user(
@@ -94,7 +95,7 @@ pub async fn get_user_by_id(
 ) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(
         r#"
-        SELECT id, auth0_id, guest_id, user_type, last_active, birth_date, gender, email,
+        SELECT id, username, auth0_id, guest_id, user_type, last_active, birth_date, gender, email,
             email_verified, family_name, "updated_at", "given_name", "created_at"
         FROM "user"
         WHERE id = $1
@@ -117,14 +118,15 @@ pub async fn guest_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, 
 pub async fn create_guest_user(pool: &Pool<Postgres>) -> Result<Uuid, ServerError> {
     let row = sqlx::query(
         r#"
-        INSERT INTO "user" (guest_id, user_type, last_active)
-        VALUES ($1, $2, $3)
+        INSERT INTO "user" (guest_id, user_type, last_active, username)
+        VALUES ($1, $2, $3, $4)
         RETURNING guest_id;
         "#,
     )
     .bind(Uuid::new_v4())
     .bind(UserType::Guest)
     .bind(Utc::now())
+    .bind("Guest")
     .fetch_one(pool)
     .await?;
 
@@ -140,22 +142,33 @@ pub async fn create_registered_user(
     pool: &Pool<Postgres>,
     auth0_user: &Auth0User,
 ) -> Result<(), ServerError> {
-    let fullname = format!(
-        "{} {}",
-        auth0_user.given_name.as_deref().unwrap_or(""),
-        auth0_user.family_name.as_deref().unwrap_or("")
-    );
+    let username = match &auth0_user.username {
+        Some(username) => username.to_string(),
+        None => {
+            let email = auth0_user.email.clone().unwrap_or("Kenneth".to_string());
+            let username = email.splitn(2, '@').next().unwrap_or("Kenneth").to_string();
+            username
+        }
+    };
 
     let result = sqlx::query(
         r#"
-        INSERT INTO "user" (auth0_id, user_type, name, email)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO "user" (id, username, auth0_id, user_type, last_active, gender, email, email_verified, updated_at, family_name, given_name, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         "#,
     )
+    .bind(Uuid::new_v4())
+    .bind(&username)
     .bind(&auth0_user.auth0_id)
     .bind(&UserType::Registered)
-    .bind(&fullname)
+    .bind(Utc::now())
+    .bind(Gender::Unknown)
     .bind(&auth0_user.email)
+    .bind(&auth0_user.email_verified)
+    .bind(&auth0_user.updated_at)
+    .bind(&auth0_user.family_name)
+    .bind(&auth0_user.given_name)
+    .bind(&auth0_user.created_at)
     .execute(pool)
     .await?;
 
@@ -193,7 +206,7 @@ pub async fn update_user_activity(pool: &Pool<Postgres>, user_id: Uuid) -> Resul
 pub async fn patch_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,
-    put_request: PutUserRequest,
+    put_request: PatchUserRequest,
 ) -> Result<(), ServerError> {
     let mut builder: QueryBuilder<'_, Postgres> = sqlx::QueryBuilder::new("UPDATE user SET ");
     let mut separator = builder.separated(", ");

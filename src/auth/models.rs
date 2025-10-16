@@ -134,6 +134,7 @@ pub enum UserType {
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct UserKeys {
+    #[sqlx(rename = "id")]
     pub user_id: Uuid,
     pub auth0_id: Option<String>,
     pub guest_id: Option<Uuid>,
@@ -142,6 +143,7 @@ pub struct UserKeys {
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
     pub id: Uuid,
+    pub username: String,
     pub auth0_id: Option<String>,
     pub user_type: UserType,
     pub last_active: DateTime<Utc>,
@@ -159,6 +161,7 @@ impl User {
     pub fn strip(&self) -> Self {
         Self {
             id: Uuid::nil(),
+            username: "Guest".to_string(),
             auth0_id: None,
             user_type: UserType::Guest,
             last_active: Utc::now(),
@@ -175,7 +178,7 @@ impl User {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PutUserRequest {
+pub struct PatchUserRequest {
     pub name: Option<String>,
     pub email: Option<String>,
     pub birth_date: Option<NaiveDate>,
