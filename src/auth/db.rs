@@ -5,10 +5,11 @@ use uuid::Uuid;
 
 use crate::{
     auth::models::{
-        ActivityStats, Auth0User, AverageUserStats, PatchUserRequest, RecentUserStats, User,
-        UserKeys, UserType,
+        ActivityStats, Auth0User, AverageUserStats, ListUsersQuery, PatchUserRequest,
+        RecentUserStats, User, UserKeys, UserType,
     },
-    common::error::ServerError,
+    common::{error::ServerError, models::PagedResponse},
+    config::config::CONFIG,
     game::models::Gender,
 };
 
@@ -254,10 +255,23 @@ pub async fn delete_user_by_id(pool: &Pool<Postgres>, user_id: &Uuid) -> Result<
     Ok(())
 }
 
-pub async fn list_all_users(pool: &Pool<Postgres>) -> Result<Vec<User>, sqlx::Error> {
-    query_as::<_, User>(r#"SELECT * FROM "user""#)
-        .fetch_all(pool)
-        .await
+pub async fn list_all_users(
+    pool: &Pool<Postgres>,
+    query: ListUsersQuery,
+) -> Result<PagedResponse<User>, sqlx::Error> {
+    let offset = CONFIG.server.page_size * query.page_num;
+    let limit = CONFIG.server.page_size + 1;
+
+    query_as::<_, User>(
+        r#"
+        SELECT id, FYLL IN
+        FROM "user"
+        OFFSET = $1 LIMIT = $2
+        ORDER BY created_at DESC
+        "#,
+    )
+    .fetch_all(pool)
+    .await
 }
 
 pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivityStats, sqlx::Error> {

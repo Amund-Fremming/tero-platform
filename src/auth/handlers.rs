@@ -14,11 +14,15 @@ use crate::{
     auth::{
         db::{self},
         models::{
-            Auth0User, Claims, EnsureGuestQuery, PatchUserRequest, Permission, RestrictedConfig,
-            SubjectId,
+            Auth0User, Claims, EnsureGuestQuery, ListUsersQuery, PatchUserRequest, Permission,
+            RestrictedConfig, SubjectId,
         },
     },
-    common::{app_state::AppState, error::ServerError, models::ClientPopup},
+    common::{
+        app_state::AppState,
+        error::ServerError,
+        models::{ClientPopup, PagedResponse},
+    },
     config::config::CONFIG,
     system_log::models::{Action, LogCeverity, SubjectType},
 };
@@ -195,6 +199,7 @@ pub async fn list_all_users(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
+    Query(query): Query<ListUsersQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Registered(_) = subject_id else {
         return Err(ServerError::AccessDenied);
@@ -204,7 +209,7 @@ pub async fn list_all_users(
         return Err(ServerError::Permission(missing));
     }
 
-    let users = db::list_all_users(state.get_pool()).await?;
+    let users = db::list_all_users(state.get_pool(), query).await?;
     Ok((StatusCode::OK, Json(users)))
 }
 
