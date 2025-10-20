@@ -7,6 +7,11 @@ use uuid::Uuid;
 use crate::{game::models::Gender, integration::models::IntegrationName};
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ListUsersQuery {
+    pub page_num: u8,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RestrictedConfig {
     pub auth0_domain: String,
     pub gs_domain: String,
@@ -168,7 +173,7 @@ impl User {
             gender: Gender::Unknown,
             updated_at: Utc::now(),
             created_at: self.created_at,
-            given_name: self.given_name.clone(),
+            given_name: None,
             family_name: None,
             email: None,
             email_verified: None,
