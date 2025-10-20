@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use axum::{Router, middleware::from_fn_with_state, routing::post};
 use dotenv::dotenv;
 use sqlx::{Pool, Postgres};
-use tracing::{error, info, level_filters::LevelFilter};
-use tracing_subscriber::FmtSubscriber;
+use tracing::{error, info};
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use crate::{
@@ -40,10 +40,10 @@ async fn main() {
     dotenv().ok();
 
     // Initialize logging
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(LevelFilter::DEBUG)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set global tracing");
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env())
+        .init();
 
     // Initialize state
     let state = AppState::from_connection_string(&CONFIG.database_url)

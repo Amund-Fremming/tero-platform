@@ -131,6 +131,7 @@
 - [ ] query params, limit offset on lsit users
 - [ ] Patch user needs update
 - [ ] delete user needs to delete auth0 user also
+- [ ] Webhook bug, refresh tokens treigger post login thing
 
 - [ ] Expand refresh token / jwt to be longer than an hour
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)
@@ -139,3 +140,6 @@
 
 **Maybe later**
 - [ ] Change webhook to use event streams from auth0, and handle events
+- [ ] dedicated users for registered and guest
+    - use a link from regstered to guest
+    - when geeting user stats, just retain away guests users with ids in normal users
