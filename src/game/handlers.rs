@@ -33,6 +33,14 @@ use crate::{
     },
 };
 
+///
+/// NOTE TO SELF
+///     Some games can be created as interactive games for people to interact
+///     in the creation of the game. But then the game is a standalone game.
+///     An example would be quiz, quiz is interactive on creation by adding
+///     questions but standalone when playing.
+///
+
 pub fn game_routes(state: Arc<AppState>) -> Router {
     let generic_routes = Router::new()
         .route("/page", post(get_game_page))

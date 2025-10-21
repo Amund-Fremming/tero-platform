@@ -18,11 +18,7 @@ use crate::{
             RestrictedConfig, SubjectId,
         },
     },
-    common::{
-        app_state::AppState,
-        error::ServerError,
-        models::{ClientPopup, PagedResponse},
-    },
+    common::{app_state::AppState, error::ServerError, models::ClientPopup},
     config::config::CONFIG,
     system_log::models::{Action, LogCeverity, SubjectType},
 };

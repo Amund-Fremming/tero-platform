@@ -6,13 +6,13 @@ use crate::common::error::ServerError;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PagedResponse<T> {
-    games: Vec<T>,
+    items: Vec<T>,
     has_next: bool,
 }
 
 impl<T> PagedResponse<T> {
-    pub fn new(games: Vec<T>, has_next: bool) -> Self {
-        Self { games, has_next }
+    pub fn new(items: Vec<T>, has_next: bool) -> Self {
+        Self { items, has_next }
     }
 }
 

@@ -262,7 +262,7 @@ pub async fn list_all_users(
     let offset = CONFIG.server.page_size * query.page_num;
     let limit = CONFIG.server.page_size + 1;
 
-    query_as::<_, User>(
+    let items = query_as::<_, User>(
         r#"
         SELECT id, FYLL IN
         FROM "user"
@@ -270,8 +270,15 @@ pub async fn list_all_users(
         ORDER BY created_at DESC
         "#,
     )
+    .bind(offset as i32)
+    .bind(limit as i32)
     .fetch_all(pool)
-    .await
+    .await?;
+
+    let has_next = items.len() > CONFIG.server.page_size as usize;
+    let response = PagedResponse::new(items, has_next);
+
+    Ok(response)
 }
 
 pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivityStats, sqlx::Error> {

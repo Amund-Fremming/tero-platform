@@ -66,13 +66,9 @@ async fn main() {
     }
 
     let event_routes = Router::new()
-        .nest(
-            "/events",
-            Router::new()
-                .route("/", post(auth0_trigger_endpoint))
-                .with_state(state.clone()),
-        )
-        .layer(from_fn_with_state(state.clone(), webhook_mw));
+        .route("/", post(auth0_trigger_endpoint))
+        .layer(from_fn_with_state(state.clone(), webhook_mw))
+        .with_state(state.clone());
 
     let public_routes = Router::new()
         .nest("/health", health_routes(state.clone()))
@@ -87,7 +83,7 @@ async fn main() {
     let app = Router::new()
         .merge(protected_routes)
         .merge(public_routes)
-        .merge(event_routes);
+        .nest("/events", event_routes);
 
     // Initialize webserver
     let listener =
