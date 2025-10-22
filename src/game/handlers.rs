@@ -20,7 +20,7 @@ use crate::{
         db::{self, increment_times_played},
         models::{
             CreateGameRequest, GameConverter, GameEnvelope, GamePageQuery, GameType,
-            SavedGamePageQuery,
+            SavedGamesPageQuery,
         },
     },
     quiz::{
@@ -196,7 +196,7 @@ async fn initiate_standalone_game(
             ));
         }
     };
-
+    // TODO return some more generic resposne so its easier to add more games here
     return Ok((StatusCode::OK, Json(response)));
 }
 
@@ -416,7 +416,7 @@ async fn delete_saved_game(
 async fn get_saved_games_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Query(query): Query<SavedGamePageQuery>,
+    Query(query): Query<SavedGamesPageQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Registered(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");

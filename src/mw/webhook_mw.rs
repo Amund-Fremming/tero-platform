@@ -1,6 +1,6 @@
 use axum::{body::Body, extract::Request, middleware::Next, response::Response};
 use reqwest::StatusCode;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::{
     auth::models::SubjectId, common::error::ServerError, config::config::CONFIG,
@@ -14,7 +14,6 @@ pub async fn webhook_mw(mut req: Request<Body>, next: Next) -> Result<Response, 
         ServerError::Api(StatusCode::UNAUTHORIZED, "Webhook key not present".into())
     })?;
 
-    error!("Recieved key: {}", webhook_header);
     let valid_key = CONFIG.auth0.webhook_key.to_string();
     if valid_key != webhook_header {
         return Err(ServerError::Api(

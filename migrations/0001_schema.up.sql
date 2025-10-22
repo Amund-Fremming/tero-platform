@@ -40,7 +40,8 @@ CREATE TYPE game_category AS ENUM (
     'casual',
     'ladies',
     'boys',
-    'default'
+    'default',
+    'random'
 );
 
 CREATE TYPE gender AS ENUM (

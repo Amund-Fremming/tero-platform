@@ -1,12 +1,12 @@
 use chrono::{Duration, Utc};
 use sqlx::{Pool, Postgres};
-use tracing::warn;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::{
-    common::{db_query_builder::DBQueryBuilder, error::ServerError, models::PagedResponse},
+    common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
-    game::models::{GameBase, GamePageQuery, GameType, SavedGamePageQuery},
+    game::models::{GameBase, GamePageQuery, GameType, SavedGamesPageQuery},
 };
 
 pub async fn delete_non_active_games(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
@@ -29,7 +29,15 @@ pub async fn get_game_page(
     request: &GamePageQuery,
 ) -> Result<PagedResponse<GameBase>, sqlx::Error> {
     let page_size = CONFIG.server.page_size as u16;
-    let games = DBQueryBuilder::select(
+    let limit = page_size + 1;
+    let offset = page_size * request.page_num;
+
+    let category = match &request.category {
+        Some(category) => format!("AND category = '{}'", category),
+        None => "".to_string(),
+    };
+
+    let query = format!(
         r#"
         SELECT 
             id,
@@ -40,20 +48,22 @@ pub async fn get_game_page(
             iterations,
             times_played,
             last_played
-            "#,
-    )
-    .from("game_base")
-    .r#where("game_type", &request.game_type)
-    .where_opt("category", &request.category)
-    .offset(page_size * request.page_num)
-    .limit(page_size + 1)
-    .order_desc("times_played")
-    .build()
-    .build_query_as::<GameBase>()
-    .fetch_all(pool)
-    .await?;
+        FROM "game_base"
+        WHERE game_type = '{}' {}
+        ORDER BY times_played DESC
+        LIMIT {} OFFSET {}
+        "#,
+        request.game_type, category, limit, offset
+    );
 
-    let has_next = games.len() < (page_size + 1) as usize;
+    debug!("Query: {}", query);
+
+    let mut games = sqlx::query_as::<_, GameBase>(&query)
+        .fetch_all(pool)
+        .await?;
+
+    let has_next = games.len() > page_size as usize;
+    games.pop();
     let page = PagedResponse::new(games, has_next);
 
     Ok(page)
@@ -193,7 +203,7 @@ pub async fn delete_saved_game(
 pub async fn get_saved_games_page(
     pool: &Pool<Postgres>,
     user_id: Uuid,
-    query: SavedGamePageQuery,
+    query: SavedGamesPageQuery,
 ) -> Result<PagedResponse<GameBase>, ServerError> {
     let page_size = CONFIG.server.page_size;
     let limit = page_size + 1;

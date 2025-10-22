@@ -64,8 +64,8 @@ pub enum GameType {
 impl fmt::Display for GameType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GameType::Quiz => write!(f, "quiz_game"),
-            GameType::Spin => write!(f, "spin_game"),
+            GameType::Quiz => write!(f, "quiz"),
+            GameType::Spin => write!(f, "spin"),
         }
     }
 }
@@ -78,7 +78,7 @@ pub struct GamePageQuery {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SavedGamePageQuery {
+pub struct SavedGamesPageQuery {
     pub page_num: u8,
 }
 
