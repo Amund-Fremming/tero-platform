@@ -137,6 +137,7 @@
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)
 - [ ] One endpoint to get all admin related data: stats, popup, config ??
 - [ ] Error handling for client, game full/game does not exist ..
+- [ ] Generic json response on initiate standalone game, its specific now
 
 **Maybe later**
 - [ ] Change webhook to use event streams from auth0, and handle events
