@@ -31,7 +31,7 @@ pub fn public_auth_routes(state: Arc<AppState>) -> Router {
 
 pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/", get(get_user_from_subject).patch(patch_user))
+        .route("/", get(get_base_user_from_subject).patch(patch_user))
         .route("/{user_id}", delete(delete_user))
         .route("/list", get(list_all_users))
         .route("/valid-token", get(validate_token))
@@ -42,20 +42,19 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
         .with_state(state)
 }
 
-async fn get_user_from_subject(
+async fn get_base_user_from_subject(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let (user_id, is_guest) = match subject_id {
-        SubjectId::Guest(user_id) => (user_id, true),
-        SubjectId::Registered(user_id) => (user_id, false),
-        SubjectId::Integration(_) => {
+    let user_id = match subject_id {
+        SubjectId::BaseUser(user_id) => user_id,
+        SubjectId::Integration(_) | SubjectId::PseudoUser(_) => {
             return Err(ServerError::AccessDenied);
         }
     };
 
-    let Some(mut user) = db::get_user_by_id(state.get_pool(), &user_id).await? else {
+    let Some(user) = db::get_base_user_by_id(state.get_pool(), &user_id).await? else {
         error!("Unexpected: user id was previously fetched but is now missing.");
         state
             .syslog()
@@ -69,10 +68,6 @@ async fn get_user_from_subject(
         return Err(ServerError::NotFound("User not found".into()));
     };
 
-    if is_guest {
-        user = user.strip();
-    }
-
     Ok((StatusCode::OK, Json(user)))
 }
 
@@ -81,7 +76,7 @@ async fn validate_token(
     Extension(subject_id): Extension<SubjectId>,
 ) -> Result<impl IntoResponse, ServerError> {
     let valid_type = match subject_id {
-        SubjectId::Registered(_) => SubjectType::RegisteredUser,
+        SubjectId::BaseUser(_) => SubjectType::RegisteredUser,
         SubjectId::Integration(_) => SubjectType::Integration,
         _ => return Err(ServerError::AccessDenied),
     };
@@ -94,14 +89,14 @@ async fn ensure_guest_user(
     Query(query): Query<EnsureGuestQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
     let guest_id = match query.guest_id {
-        None => db::create_guest_user(state.get_pool()).await?,
+        None => db::create_pseudo_user(state.get_pool()).await?,
         Some(mut guest_id) => {
-            let exists = db::guest_user_exists(state.get_pool(), guest_id).await?;
+            let exists = db::pseudo_user_exists(state.get_pool(), guest_id).await?;
             if exists {
                 return Ok((StatusCode::OK, Json(guest_id)));
             }
 
-            guest_id = db::create_guest_user(state.get_pool()).await?;
+            guest_id = db::create_pseudo_user(state.get_pool()).await?;
             guest_id
         }
     };
@@ -116,12 +111,12 @@ async fn patch_user(
     Extension(claims): Extension<Claims>,
     Json(request): Json<PatchUserRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(user_id) = subject else {
+    let SubjectId::BaseUser(user_id) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
     if let None = claims.missing_permission([Permission::WriteAdmin]) {
-        db::patch_user_by_id(state.get_pool(), &user_id, request).await?;
+        db::patch_base_user_by_id(state.get_pool(), &user_id, request).await?;
         return Ok(StatusCode::OK);
     }
 
@@ -130,7 +125,7 @@ async fn patch_user(
         return Ok(StatusCode::OK);
     }
 
-    db::patch_user_by_id(state.get_pool(), &user_id, request).await?;
+    db::patch_base_user_by_id(state.get_pool(), &user_id, request).await?;
     Ok(StatusCode::OK)
 }
 
@@ -141,12 +136,12 @@ async fn delete_user(
     Extension(claims): Extension<Claims>,
     Path(user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(actual_user_id) = subject else {
+    let SubjectId::BaseUser(actual_user_id) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
     if let None = claims.missing_permission([Permission::WriteAdmin]) {
-        db::delete_user_by_id(state.get_pool(), &user_id).await?;
+        db::delete_base_user_by_id(state.get_pool(), &user_id).await?;
         return Ok(StatusCode::OK);
     }
 
@@ -154,7 +149,7 @@ async fn delete_user(
         return Err(ServerError::AccessDenied);
     }
 
-    db::delete_user_by_id(state.get_pool(), &actual_user_id).await?;
+    db::delete_base_user_by_id(state.get_pool(), &actual_user_id).await?;
     Ok(StatusCode::OK)
 }
 
@@ -165,11 +160,11 @@ async fn patch_user_activity(
     Extension(_claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject_id {
-        SubjectId::Registered(id) | SubjectId::Guest(id) => id,
+        SubjectId::BaseUser(id) | SubjectId::PseudoUser(id) => id,
         _ => return Err(ServerError::AccessDenied),
     };
 
-    db::update_user_activity(state.get_pool(), user_id).await?;
+    db::update_pseudo_user_activity(state.get_pool(), user_id).await?;
     Ok(StatusCode::OK)
 }
 
@@ -185,7 +180,7 @@ pub async fn auth0_trigger_endpoint(
     };
 
     info!("Auth0 post registration trigger was triggered");
-    db::create_registered_user(state.get_pool(), &auth0_user).await?;
+    db::create_base_user(state.get_pool(), &auth0_user).await?;
 
     Ok(())
 }
@@ -197,7 +192,7 @@ pub async fn list_all_users(
     Extension(claims): Extension<Claims>,
     Query(query): Query<ListUsersQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(_) = subject_id else {
+    let SubjectId::BaseUser(_) = subject_id else {
         return Err(ServerError::AccessDenied);
     };
 
@@ -205,7 +200,7 @@ pub async fn list_all_users(
         return Err(ServerError::Permission(missing));
     }
 
-    let users = db::list_all_users(state.get_pool(), query).await?;
+    let users = db::list_base_users(state.get_pool(), query).await?;
     Ok((StatusCode::OK, Json(users)))
 }
 
@@ -215,7 +210,7 @@ async fn get_user_activity_stats(
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(_) = subject_id else {
+    let SubjectId::BaseUser(_) = subject_id else {
         error!("Unauthorized guest user or integration tried accessing admin endpoint");
         return Err(ServerError::AccessDenied);
     };
@@ -234,7 +229,7 @@ async fn get_config(
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(_) = subject_id else {
+    let SubjectId::BaseUser(_) = subject_id else {
         return Err(ServerError::AccessDenied);
     };
 
@@ -257,7 +252,7 @@ async fn update_client_popup(
     Extension(claims): Extension<Claims>,
     Json(payload): Json<ClientPopup>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(_user_id) = subject_id else {
+    let SubjectId::BaseUser(_user_id) = subject_id else {
         return Err(ServerError::AccessDenied);
     };
 

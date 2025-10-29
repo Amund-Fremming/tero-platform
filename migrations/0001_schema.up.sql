@@ -31,11 +31,6 @@ CREATE TYPE "subject_type" AS ENUM (
     'system'
 );
 
-CREATE TYPE user_type AS ENUM (
-    'guest',
-    'registered'
-);
-
 CREATE TYPE game_category AS ENUM (
     'casual',
     'ladies',
@@ -85,13 +80,16 @@ CREATE TABLE "integration" (
     "name" integration_name NOT NULL
 );
 
-CREATE TABLE "user" (
+CREATE TABLE "pseudo_user" (
+    "id" UUID NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
+    "last_active" TIMESTAMPTZ NOT NULL DEFAULT now(),
+)
+
+CREATE TABLE "base_user" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "username" VARCHAR (100) NOT NULL,
     "auth0_id" VARCHAR,
     "guest_id" UUID,
-    "user_type" user_type NOT NULL DEFAULT 'guest',
-    "last_active" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "birth_date" DATE,
     "gender" gender NOT NULL DEFAULT 'u',
     "email" VARCHAR(150),
@@ -140,11 +138,13 @@ CREATE INDEX "idx_game_base_id" ON "game_base" ("id");
 CREATE INDEX "idx_game_base_game_type" ON "game_base" ("game_type", "times_played" DESC);
 CREATE INDEX "idx_game_base_type_and_category" ON "game_base" ("game_type", "category", "times_played" DESC);
 
-CREATE INDEX "idx_user_id" ON "user" ("id");
-CREATE INDEX "idx_user_auth0_id" ON "user" ("auth0_id");
-CREATE INDEX "idx_user_guest_id" ON "user" ("guest_id");
-CREATE INDEX "idx_user_last_active" ON "user" ("last_active" DESC);
-CREATE INDEX "idx_user_keys" ON "user" ("id", "auth0_id", "guest_id");
+CREATE INDEX "idx_pseudo_user_id" ON "pseudo_user" ("id");
+CREATE INDEX "idx_pseudo_user_last_active" ON "pseudo_user" ("last_active");
+
+CREATE INDEX "idx_base_user_id" ON "base_user" ("id");
+CREATE INDEX "idx_base_user_auth0_id" ON "base_user" ("auth0_id");
+CREATE INDEX "idx_base_user_guest_id" ON "base_user" ("guest_id");
+CREATE INDEX "idx_base_user_keys" ON "base_user" ("id", "auth0_id", "guest_id");
 
 
 ALTER TABLE "saved_game" ADD CONSTRAINT "fk_saved_game_user" 

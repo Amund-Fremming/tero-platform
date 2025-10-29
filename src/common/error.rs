@@ -41,9 +41,6 @@ pub enum ServerError {
     #[error("GSClient error: {0}")]
     GSClientError(#[from] GSClientError),
 
-    #[error("Out of sync error: {0}")]
-    OutOfSync(String),
-
     #[error("KeyVault error: {0}")]
     KeyVaultError(#[from] KeyVaultError),
 
@@ -102,10 +99,6 @@ impl IntoResponse for ServerError {
                     StatusCode::SERVICE_UNAVAILABLE,
                     String::from("Upstream service unavailable"),
                 )
-            }
-            ServerError::OutOfSync(e) => {
-                error!("Out of sync error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, String::new())
             }
             ServerError::KeyVaultError(e) => {
                 error!("KeyVault error: {}", e);

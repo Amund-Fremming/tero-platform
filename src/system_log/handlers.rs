@@ -33,7 +33,7 @@ async fn get_system_log_page(
     Extension(claims): Extension<Claims>,
     Query(query): Query<SyslogPageQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(_) = subject_id else {
+    let SubjectId::BaseUser(_) = subject_id else {
         error!("Unauthorized subject tried reading system logs");
         return Err(ServerError::AccessDenied);
     };
@@ -54,7 +54,7 @@ async fn create_system_log(
     Json(request): Json<CreateSyslogRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     match &subject_id {
-        SubjectId::Guest(id) | SubjectId::Registered(id) => {
+        SubjectId::PseudoUser(id) | SubjectId::BaseUser(id) => {
             error!("User {} tried writing a system log", id);
             return Err(ServerError::AccessDenied);
         }

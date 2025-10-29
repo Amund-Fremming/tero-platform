@@ -38,8 +38,8 @@ impl SystemLogBuilder {
 
     pub fn subject(mut self, subject: SubjectId) -> Self {
         let (id, _type) = match subject {
-            SubjectId::Guest(id) => (id.to_string(), SubjectType::GuestUser),
-            SubjectId::Registered(id) => (id.to_string(), SubjectType::RegisteredUser),
+            SubjectId::PseudoUser(id) => (id.to_string(), SubjectType::GuestUser),
+            SubjectId::BaseUser(id) => (id.to_string(), SubjectType::RegisteredUser),
             SubjectId::Integration(int_name) => (int_name.to_string(), SubjectType::Integration),
         };
         self.subject_id = Some(id);

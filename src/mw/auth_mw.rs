@@ -13,7 +13,7 @@ use tracing::{error, info};
 
 use crate::{
     auth::{
-        db::{get_user_id_from_guest_id, get_user_keys_from_auth0_id},
+        db::{ensure_pseudo_user, get_base_user_by_auth0_id},
         models::{Claims, Jwks, SubjectId},
     },
     common::{app_state::AppState, error::ServerError},
@@ -29,15 +29,15 @@ pub async fn auth_mw(
     mut req: Request<Body>,
     next: Next,
 ) -> Result<Response, ServerError> {
-    let guest_header = extract_header(GUEST_AUTHORIZATION, req.headers());
+    let pseudo_header = extract_header(GUEST_AUTHORIZATION, req.headers());
     let token_header = extract_header(AUTHORIZATION.as_str(), req.headers());
 
-    match (guest_header, token_header) {
+    match (pseudo_header, token_header) {
         (Some(guest_header), None) => {
-            handle_guest_user(state.get_pool(), &mut req, &guest_header).await?;
+            handle_pseudo_user(state.get_pool(), &mut req, &guest_header).await?;
         }
         (Some(guest_header), Some(token_header)) => {
-            handle_user_token(state.clone(), &mut req, &token_header, &guest_header).await?;
+            handle_base_user(state.clone(), &mut req, &token_header, &guest_header).await?;
         }
         (None, Some(token_header)) => {
             handle_m2m_token(state.clone(), &mut req, &token_header).await?;
@@ -51,21 +51,17 @@ pub async fn auth_mw(
     Ok(next.run(req).await)
 }
 
-async fn handle_guest_user(
+async fn handle_pseudo_user(
     pool: &Pool<Postgres>,
     request: &mut Request<Body>,
-    guest_header: &str,
+    pseudo_header: &str,
 ) -> Result<(), ServerError> {
-    let guest_id = to_uuid(guest_header)?;
+    let pseudo_id = to_uuid(pseudo_header)?;
 
-    let Some(user_id) = get_user_id_from_guest_id(pool, &guest_id).await? else {
-        return Err(ServerError::Api(
-            StatusCode::UNAUTHORIZED,
-            "User with guest id does not exist".into(),
-        ));
-    };
+    let pool_clone = pool.clone();
+    tokio::task::spawn(async move { ensure_pseudo_user(&pool_clone, pseudo_id).await });
 
-    let subject = SubjectId::Guest(user_id);
+    let subject = SubjectId::PseudoUser(pseudo_id);
     info!("Request by subject: {:?}", subject);
 
     request.extensions_mut().insert(subject);
@@ -111,11 +107,11 @@ async fn handle_m2m_token(
     Ok(())
 }
 
-async fn handle_user_token(
+async fn handle_base_user(
     state: Arc<AppState>,
     request: &mut Request<Body>,
     token_header: &str,
-    guest_header: &str,
+    pseudo_header: &str,
 ) -> Result<(), ServerError> {
     let Some(token) = token_header.strip_prefix("Bearer ") else {
         return Err(ServerError::Api(
@@ -132,15 +128,27 @@ async fn handle_user_token(
         return Err(ServerError::AccessDenied);
     }
 
-    let guest_id = to_uuid(guest_header)?;
-    let user_keys = get_user_keys_from_auth0_id(state.get_pool(), claims.auth0_id()).await?;
+    /*
+        synced + id match -> good
+        synced + non id match -> update pseudo id to base id
+        not synced update pseudo od to base id
+    */
 
-    if Some(guest_id) != user_keys.guest_id {
-        info!("Starting user sync for user id: {}", user_keys.user_id);
-        state.sync_user(user_keys.user_id, guest_id);
+    let Some(base_user) = get_base_user_by_auth0_id(state.get_pool(), claims.auth0_id()).await?
+    else {
+        // TODO LOG!!!!!
+        return Err(ServerError::Internal(
+            "Sync error, auth0 id does not exist in out database".into(),
+        ));
+    };
+
+    let pseudo_id = to_uuid(pseudo_header)?;
+
+    if base_user.id != pseudo_id {
+        state.sync_user(base_user.id, pseudo_id);
     }
 
-    let subject = SubjectId::Registered(user_keys.user_id);
+    let subject = SubjectId::BaseUser(base_user.id);
     info!("Request by subject: {:?}", subject);
 
     request.extensions_mut().insert(claims);

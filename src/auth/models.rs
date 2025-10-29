@@ -106,8 +106,8 @@ impl Claims {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SubjectId {
-    Guest(Uuid),
-    Registered(Uuid),
+    PseudoUser(Uuid),
+    BaseUser(Uuid),
     Integration(IntegrationName),
 }
 
@@ -138,19 +138,16 @@ pub enum UserType {
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct UserKeys {
-    #[sqlx(rename = "id")]
-    pub user_id: Uuid,
-    pub auth0_id: Option<String>,
-    pub guest_id: Option<Uuid>,
+pub struct PseudoUser {
+    pub id: Uuid,
+    pub last_active: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct User {
+pub struct BaseUser {
     pub id: Uuid,
     pub username: String,
     pub auth0_id: Option<String>,
-    pub user_type: UserType,
     pub last_active: DateTime<Utc>,
     pub gender: Gender,
     pub email: Option<String>,
@@ -160,26 +157,6 @@ pub struct User {
     pub given_name: Option<String>,
     pub created_at: DateTime<Utc>,
     pub birth_date: Option<NaiveDate>,
-}
-
-impl User {
-    pub fn strip(&self) -> Self {
-        Self {
-            id: Uuid::nil(),
-            username: "Guest".to_string(),
-            auth0_id: None,
-            user_type: UserType::Guest,
-            last_active: Utc::now(),
-            gender: Gender::Unknown,
-            updated_at: Utc::now(),
-            created_at: self.created_at,
-            given_name: None,
-            family_name: None,
-            email: None,
-            email_verified: None,
-            birth_date: None,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,104 +1,127 @@
 use chrono::Utc;
-use sqlx::{Pool, Postgres, QueryBuilder, Row, Transaction, query, query_as};
+use serde_json::json;
+use sqlx::{Pool, Postgres, QueryBuilder, Row, query, query_as};
 use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
     auth::models::{
-        ActivityStats, Auth0User, AverageUserStats, ListUsersQuery, PatchUserRequest,
-        RecentUserStats, User, UserKeys, UserType,
+        ActivityStats, Auth0User, AverageUserStats, BaseUser, ListUsersQuery, PatchUserRequest,
+        RecentUserStats,
     },
     common::{error::ServerError, models::PagedResponse},
     config::config::CONFIG,
     game::models::Gender,
+    system_log::{
+        builder::SystemLogBuilder,
+        models::{Action, LogCeverity},
+    },
 };
 
-pub async fn tx_sync_user(
-    tx: &mut Transaction<'_, Postgres>,
-    user_id: Uuid,
-    guest_id: Uuid,
-) -> Result<(), ServerError> {
-    let delete_row = sqlx::query(
+pub async fn delete_pseudo_user(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), ServerError> {
+    let row = sqlx::query(
         r#"
-        DELETE FROM "user"
-        WHERE guest_id = $1
+        DELETE FROM "pseudo_user"
+        WHERE id = $1
         "#,
     )
-    .bind(guest_id)
-    .execute(&mut **tx)
+    .bind(id)
+    .execute(pool)
     .await?;
 
-    let insert_row = sqlx::query(
-        r#"
-        UPDATE "user"
-        SET guest_id = $1
-        WHERE id = $2
-        "#,
-    )
-    .bind(guest_id)
-    .bind(user_id)
-    .execute(&mut **tx)
-    .await?;
-
-    if delete_row.rows_affected() == 0 || insert_row.rows_affected() == 0 {
-        return Err(ServerError::Internal(
-            "Failed to sync user to the database".into(),
-        ));
+    if row.rows_affected() == 0 {
+        return Err(ServerError::Internal("Failed to delete pseudo user".into()));
     }
 
     Ok(())
 }
 
-pub async fn get_user_id_from_guest_id(
-    pool: &Pool<Postgres>,
-    guest_id: &Uuid,
-) -> Result<Option<Uuid>, sqlx::Error> {
-    sqlx::query_scalar(
+pub async fn ensure_pseudo_user(pool: &Pool<Postgres>, id: Uuid) {
+    let result = sqlx::query(
         r#"
-        SELECT id
-        FROM "user"
-        WHERE guest_id = $1
+        INSERT INTO "pseudo_user" (id, last_active)
+        VALUES ($1, $2)
+        ON CONFLICT DO NOTHING
         "#,
     )
-    .bind(guest_id)
-    .fetch_optional(pool)
-    .await
+    .bind(id)
+    .bind(Utc::now())
+    .execute(pool)
+    .await;
+
+    match result {
+        Err(e) => {
+            let _ = SystemLogBuilder::new(pool)
+                .action(Action::Create)
+                .ceverity(LogCeverity::Critical)
+                .function("ensure_psuedo_user")
+                .description("Failed to do insert on pseudo user. Should not fail")
+                .metadata(json!({"error": e.to_string()}))
+                .log();
+        }
+        Ok(row) => {
+            if row.rows_affected() != 0 {
+                let _ = SystemLogBuilder::new(pool)
+                    .action(Action::Create)
+                    .ceverity(LogCeverity::Warning)
+                    .function("ensure_psuedo_user")
+                    .description("User had pseudo user that did not exist, so a new was created. This will cause ghost users")
+                    .log();
+            }
+        }
+    };
 }
 
-pub async fn get_user_keys_from_auth0_id(
+pub async fn set_pseudo_user_id(
+    pool: &Pool<Postgres>,
+    new_id: Uuid,
+    old_id: Uuid,
+) -> Result<(), ServerError> {
+    let row = sqlx::query(
+        r#"
+        UPDATE "pseudo_user"
+        SET id = $1
+        WHERE id = $2
+        "#,
+    )
+    .bind(new_id)
+    .bind(old_id)
+    .execute(pool)
+    .await?;
+
+    if row.rows_affected() == 0 {
+        return Err(ServerError::Internal("Failed to sync users".into()));
+    }
+
+    Ok(())
+}
+
+pub async fn get_base_user_by_auth0_id(
     pool: &Pool<Postgres>,
     auth0_id: &str,
-) -> Result<UserKeys, ServerError> {
-    let option = sqlx::query_as::<_, UserKeys>(
+) -> Result<Option<BaseUser>, sqlx::Error> {
+    sqlx::query_as::<_, BaseUser>(
         r#"
-        SELECT id, auth0_id, guest_id
-        FROM "user"
+        SELECT id, username, auth0_id, guest_id, birth_date, gender, email,
+            email_verified, family_name, updated_at, given_name, created_at
+        FROM "base_user"
         WHERE auth0_id = $1
         "#,
     )
     .bind(auth0_id)
     .fetch_optional(pool)
-    .await?;
-
-    let Some(keys) = option else {
-        return Err(ServerError::OutOfSync(format!(
-            "User id is out of sync with auth0_id {}",
-            auth0_id
-        )));
-    };
-
-    Ok(keys)
+    .await
 }
 
-pub async fn get_user_by_id(
+pub async fn get_base_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,
-) -> Result<Option<User>, sqlx::Error> {
-    sqlx::query_as::<_, User>(
+) -> Result<Option<BaseUser>, sqlx::Error> {
+    sqlx::query_as::<_, BaseUser>(
         r#"
-        SELECT id, username, auth0_id, guest_id, user_type, last_active, birth_date, gender, email,
-            email_verified, family_name, "updated_at", "given_name", "created_at"
-        FROM "user"
+        SELECT id, username, auth0_id, guest_id, birth_date, gender, email,
+            email_verified, family_name, updated_at, given_name, created_at
+        FROM "base_user"
         WHERE id = $1
         "#,
     )
@@ -107,8 +130,8 @@ pub async fn get_user_by_id(
     .await
 }
 
-pub async fn guest_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, sqlx::Error> {
-    let exists = sqlx::query_scalar::<_, Uuid>("SELECT guest_id FROM \"user\" WHERE guest_id = $1")
+pub async fn pseudo_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, sqlx::Error> {
+    let exists = sqlx::query_scalar::<_, Uuid>("SELECT id FROM \"pseudo_user\" WHERE id = $1")
         .bind(id)
         .fetch_optional(pool)
         .await?;
@@ -116,18 +139,16 @@ pub async fn guest_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, 
     Ok(exists.is_some())
 }
 
-pub async fn create_guest_user(pool: &Pool<Postgres>) -> Result<Uuid, ServerError> {
+pub async fn create_pseudo_user(pool: &Pool<Postgres>) -> Result<Uuid, ServerError> {
     let row = sqlx::query(
         r#"
-        INSERT INTO "user" (guest_id, user_type, last_active, username)
-        VALUES ($1, $2, $3, $4)
-        RETURNING guest_id;
+        INSERT INTO "pseudo_user" (id, last_active)
+        VALUES ($1, $2)
+        RETURNING id;
         "#,
     )
     .bind(Uuid::new_v4())
-    .bind(UserType::Guest)
     .bind(Utc::now())
-    .bind("Guest")
     .fetch_one(pool)
     .await?;
 
@@ -139,7 +160,7 @@ pub async fn create_guest_user(pool: &Pool<Postgres>) -> Result<Uuid, ServerErro
     Ok(guest_id)
 }
 
-pub async fn create_registered_user(
+pub async fn create_base_user(
     pool: &Pool<Postgres>,
     auth0_user: &Auth0User,
 ) -> Result<(), ServerError> {
@@ -154,15 +175,13 @@ pub async fn create_registered_user(
 
     let result = sqlx::query(
         r#"
-        INSERT INTO "user" (id, username, auth0_id, user_type, last_active, gender, email, email_verified, updated_at, family_name, given_name, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO "base_user" (id, username, auth0_id, gender, email, email_verified, updated_at, family_name, given_name, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         "#,
     )
     .bind(Uuid::new_v4())
     .bind(&username)
     .bind(&auth0_user.auth0_id)
-    .bind(&UserType::Registered)
-    .bind(Utc::now())
     .bind(Gender::Unknown)
     .bind(&auth0_user.email)
     .bind(&auth0_user.email_verified)
@@ -183,28 +202,31 @@ pub async fn create_registered_user(
     Ok(())
 }
 
-pub async fn update_user_activity(pool: &Pool<Postgres>, user_id: Uuid) -> Result<(), ServerError> {
+pub async fn update_pseudo_user_activity(
+    pool: &Pool<Postgres>,
+    id: Uuid,
+) -> Result<(), ServerError> {
     let row = sqlx::query(
         r#"
-        UPDATE "user"
+        UPDATE "pseudo_user"
         SET last_active = $1
         WHERE id = $2
         "#,
     )
     .bind(&Utc::now())
-    .bind(&user_id)
+    .bind(&id)
     .execute(pool)
     .await?;
 
     if row.rows_affected() == 0 {
-        warn!("Query failed, no user with id: {}", user_id);
+        warn!("Query failed, no user with id: {}", id);
         return Err(ServerError::NotFound("User does not exist".into()));
     }
 
     Ok(())
 }
 
-pub async fn patch_user_by_id(
+pub async fn patch_base_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,
     put_request: PatchUserRequest,
@@ -237,35 +259,35 @@ pub async fn patch_user_by_id(
     Ok(())
 }
 
-pub async fn delete_user_by_id(pool: &Pool<Postgres>, user_id: &Uuid) -> Result<(), ServerError> {
+pub async fn delete_base_user_by_id(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), ServerError> {
     let result = query(
         r#"
-        DELETE FROM "user" WHERE id = $1;
+        DELETE FROM "base_user" WHERE id = $1;
         "#,
     )
-    .bind(user_id)
+    .bind(id)
     .execute(pool)
     .await?;
 
     if result.rows_affected() == 0 {
-        warn!("Query failed, no game with id: {}", user_id);
+        warn!("Query failed, no game with id: {}", id);
         return Err(ServerError::NotFound("User does not exist".into()));
     }
 
     Ok(())
 }
 
-pub async fn list_all_users(
+pub async fn list_base_users(
     pool: &Pool<Postgres>,
     query: ListUsersQuery,
-) -> Result<PagedResponse<User>, sqlx::Error> {
+) -> Result<PagedResponse<BaseUser>, sqlx::Error> {
     let offset = CONFIG.server.page_size * query.page_num;
     let limit = CONFIG.server.page_size + 1;
 
-    let items = query_as::<_, User>(
+    let items = query_as::<_, BaseUser>(
         r#"
-        SELECT id, FYLL IN
-        FROM "user"
+        SELECT id, username, auth0_id, gender, email, email_verified, updated_at, family_name, given_name, created_at
+        FROM "base_user"
         OFFSET = $1 LIMIT = $2
         ORDER BY created_at DESC
         "#,
@@ -281,13 +303,14 @@ pub async fn list_all_users(
     Ok(response)
 }
 
+// TODO - update to count base + pseudo
 pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivityStats, sqlx::Error> {
     let recent_fut = sqlx::query_as::<_, RecentUserStats>(
         r#"
         SELECT
-            COUNT(*) FILTER (WHERE created_at >= date_trunc('month', CURRENT_DATE)) AS this_month_users,
-            COUNT(*) FILTER (WHERE created_at >= date_trunc('week', CURRENT_DATE)) AS this_week_users,
-            COUNT(*) FILTER (WHERE created_at = CURRENT_DATE) AS todays_users,
+            COUNT(*) FILTER (WHERE last_active >= date_trunc('month', CURRENT_DATE)) AS this_month_users,
+            COUNT(*) FILTER (WHERE last_active >= date_trunc('week', CURRENT_DATE)) AS this_week_users,
+            COUNT(*) FILTER (WHERE last_active = CURRENT_DATE) AS todays_users,
         FROM users
         "#
     )
@@ -307,7 +330,7 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
         sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM games").fetch_one(pool);
 
     let total_user_count_fut =
-        sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM user").fetch_one(pool);
+        sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM base_user").fetch_one(pool);
 
     let (recent, average, total_game_count, total_user_count): (
         Result<RecentUserStats, sqlx::Error>,

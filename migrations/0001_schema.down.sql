@@ -22,11 +22,13 @@ DROP INDEX IF EXISTS "idx_game_base_id";
 DROP INDEX IF EXISTS "idx_game_base_game_type";
 DROP INDEX IF EXISTS "idx_game_base_type_and_category";
 
-DROP INDEX IF EXISTS "idx_user_id";
-DROP INDEX IF EXISTS "idx_user_auth0_id";
-DROP INDEX IF EXISTS "idx_user_guest_id" ;
-DROP INDEX IF EXISTS "idx_user_last_active";
-DROP INDEX IF EXISTS "idx_user_keys";
+DROP INDEX IF EXISTS "idx_pseudo_user_id";
+DROP INDEX IF EXISTS "idx_pseudo_user_last_active";
+
+DROP INDEX IF EXISTS "idx_base_user_id";
+DROP INDEX IF EXISTS "idx_base_user_auth0_id";
+DROP INDEX IF EXISTS "idx_base_user_guest_id" ;
+DROP INDEX IF EXISTS "idx_base_user_keys";
 
 -- Drop tables
 DROP TABLE IF EXISTS "saved_game";

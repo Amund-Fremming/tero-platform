@@ -82,7 +82,7 @@ async fn delete_game(
     Extension(claims): Extension<Claims>,
     Path((game_type, game_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
-    if let SubjectId::Integration(_) | SubjectId::Guest(_) = subject_id {
+    if let SubjectId::Integration(_) | SubjectId::PseudoUser(_) = subject_id {
         return Err(ServerError::AccessDenied);
     }
 
@@ -140,7 +140,7 @@ async fn create_interactive_game(
     Json(request): Json<CreateGameRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject_id {
-        SubjectId::Guest(id) | SubjectId::Registered(id) => id,
+        SubjectId::PseudoUser(id) | SubjectId::BaseUser(id) => id,
         _ => return Err(ServerError::AccessDenied),
     };
 
@@ -207,7 +207,7 @@ async fn initiate_interactive_game(
     Path((game_type, game_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject_id {
-        SubjectId::Guest(id) | SubjectId::Registered(id) => id,
+        SubjectId::PseudoUser(id) | SubjectId::BaseUser(id) => id,
         _ => return Err(ServerError::AccessDenied),
     };
 
@@ -388,7 +388,7 @@ async fn user_save_game(
     Extension(subject_id): Extension<SubjectId>,
     Path((game_type, base_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(user_id) = subject_id else {
+    let SubjectId::BaseUser(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");
         return Err(ServerError::AccessDenied);
     };
@@ -403,7 +403,7 @@ async fn delete_saved_game(
     Extension(subject_id): Extension<SubjectId>,
     Path((game_type, saved_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(user_id) = subject_id else {
+    let SubjectId::BaseUser(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");
         return Err(ServerError::AccessDenied);
     };
@@ -418,7 +418,7 @@ async fn get_saved_games_page(
     Extension(subject_id): Extension<SubjectId>,
     Query(query): Query<SavedGamesPageQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Registered(user_id) = subject_id else {
+    let SubjectId::BaseUser(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");
         return Err(ServerError::AccessDenied);
     };
