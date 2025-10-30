@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-pub async fn delete_pseudo_user(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), ServerError> {
+pub async fn try_delete_pseudo_user(pool: &Pool<Postgres>, id: &Uuid) -> Result<bool, sqlx::Error> {
     let row = sqlx::query(
         r#"
         DELETE FROM "pseudo_user"
@@ -29,11 +29,7 @@ pub async fn delete_pseudo_user(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), 
     .execute(pool)
     .await?;
 
-    if row.rows_affected() == 0 {
-        return Err(ServerError::Internal("Failed to delete pseudo user".into()));
-    }
-
-    Ok(())
+    return Ok(row.rows_affected() == 0);
 }
 
 pub async fn ensure_pseudo_user(pool: &Pool<Postgres>, id: Uuid) {
@@ -72,14 +68,14 @@ pub async fn ensure_pseudo_user(pool: &Pool<Postgres>, id: Uuid) {
     };
 }
 
-pub async fn set_pseudo_user_id(
+pub async fn set_base_user_id(
     pool: &Pool<Postgres>,
     new_id: Uuid,
     old_id: Uuid,
 ) -> Result<(), ServerError> {
     let row = sqlx::query(
         r#"
-        UPDATE "pseudo_user"
+        UPDATE "base_user"
         SET id = $1
         WHERE id = $2
         "#,
@@ -139,7 +135,12 @@ pub async fn pseudo_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool,
     Ok(exists.is_some())
 }
 
-pub async fn create_pseudo_user(pool: &Pool<Postgres>) -> Result<Uuid, ServerError> {
+pub async fn create_pseudo_user(
+    pool: &Pool<Postgres>,
+    id: Option<Uuid>,
+) -> Result<Uuid, ServerError> {
+    let id = id.unwrap_or(Uuid::new_v4());
+
     let row = sqlx::query(
         r#"
         INSERT INTO "pseudo_user" (id, last_active)
@@ -147,7 +148,7 @@ pub async fn create_pseudo_user(pool: &Pool<Postgres>) -> Result<Uuid, ServerErr
         RETURNING id;
         "#,
     )
-    .bind(Uuid::new_v4())
+    .bind(id)
     .bind(Utc::now())
     .fetch_one(pool)
     .await?;
@@ -156,7 +157,7 @@ pub async fn create_pseudo_user(pool: &Pool<Postgres>) -> Result<Uuid, ServerErr
         return Err(ServerError::Internal("Failed to create guest id".into()));
     }
 
-    let guest_id = row.get("guest_id");
+    let guest_id = row.get("id");
     Ok(guest_id)
 }
 

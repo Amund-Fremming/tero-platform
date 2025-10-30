@@ -20,6 +20,7 @@ use crate::{
     config::config::CONFIG,
     integration::models::{INTEGRATION_NAMES, IntegrationName},
     mw::common::{extract_header, to_uuid},
+    system_log::models::{Action, LogCeverity},
 };
 
 static GUEST_AUTHORIZATION: &str = "X-Guest-Authentication";
@@ -128,15 +129,16 @@ async fn handle_base_user(
         return Err(ServerError::AccessDenied);
     }
 
-    /*
-        synced + id match -> good
-        synced + non id match -> update pseudo id to base id
-        not synced update pseudo od to base id
-    */
-
     let Some(base_user) = get_base_user_by_auth0_id(state.get_pool(), claims.auth0_id()).await?
     else {
-        // TODO LOG!!!!!
+        state
+            .syslog()
+            .action(Action::Read)
+            .ceverity(LogCeverity::Critical)
+            .function("handle_base_user")
+            .description("Failed to get base user from auth0 id in middleware")
+            .log_async();
+
         return Err(ServerError::Internal(
             "Sync error, auth0 id does not exist in out database".into(),
         ));
@@ -145,7 +147,8 @@ async fn handle_base_user(
     let pseudo_id = to_uuid(pseudo_header)?;
 
     if base_user.id != pseudo_id {
-        state.sync_user(base_user.id, pseudo_id);
+        // Fire and forget
+        state.spawn_sync_user(base_user.id, pseudo_id);
     }
 
     let subject = SubjectId::BaseUser(base_user.id);

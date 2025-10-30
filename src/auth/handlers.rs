@@ -14,7 +14,7 @@ use crate::{
     auth::{
         db::{self},
         models::{
-            Auth0User, Claims, EnsureGuestQuery, ListUsersQuery, PatchUserRequest, Permission,
+            Auth0User, Claims, EnsureUserQuery, ListUsersQuery, PatchUserRequest, Permission,
             RestrictedConfig, SubjectId,
         },
     },
@@ -25,7 +25,7 @@ use crate::{
 
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/ensure", post(ensure_guest_user))
+        .route("/ensure", post(ensure_pseudo_user))
         .with_state(state)
 }
 
@@ -84,24 +84,24 @@ async fn validate_token(
     Ok((StatusCode::OK, Json(valid_type)))
 }
 
-async fn ensure_guest_user(
+async fn ensure_pseudo_user(
     State(state): State<Arc<AppState>>,
-    Query(query): Query<EnsureGuestQuery>,
+    Query(query): Query<EnsureUserQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let guest_id = match query.guest_id {
-        None => db::create_pseudo_user(state.get_pool()).await?,
-        Some(mut guest_id) => {
-            let exists = db::pseudo_user_exists(state.get_pool(), guest_id).await?;
+    let pseudo_id = match query.pseudo_id {
+        None => db::create_pseudo_user(state.get_pool(), None).await?,
+        Some(mut pseudo_id) => {
+            let exists = db::pseudo_user_exists(state.get_pool(), pseudo_id).await?;
             if exists {
-                return Ok((StatusCode::OK, Json(guest_id)));
+                return Ok((StatusCode::OK, Json(pseudo_id)));
             }
 
-            guest_id = db::create_pseudo_user(state.get_pool()).await?;
-            guest_id
+            pseudo_id = db::create_pseudo_user(state.get_pool(), None).await?;
+            pseudo_id
         }
     };
 
-    Ok((StatusCode::CREATED, Json(guest_id)))
+    Ok((StatusCode::CREATED, Json(pseudo_id)))
 }
 
 // NOT TESTED

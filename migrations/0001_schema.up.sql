@@ -81,12 +81,12 @@ CREATE TABLE "integration" (
 );
 
 CREATE TABLE "pseudo_user" (
-    "id" UUID NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
-    "last_active" TIMESTAMPTZ NOT NULL DEFAULT now(),
-)
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "last_active" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE "base_user" (
-    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "id" UUID NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
     "username" VARCHAR (100) NOT NULL,
     "auth0_id" VARCHAR,
     "guest_id" UUID,
@@ -148,7 +148,7 @@ CREATE INDEX "idx_base_user_keys" ON "base_user" ("id", "auth0_id", "guest_id");
 
 
 ALTER TABLE "saved_game" ADD CONSTRAINT "fk_saved_game_user" 
-    FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE;
+    FOREIGN KEY ("user_id") REFERENCES "pseudo_user"("id") ON DELETE CASCADE;
 
 ALTER TABLE "saved_game" ADD CONSTRAINT "fk_saved_game_base" 
     FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;

@@ -40,7 +40,8 @@ DROP TABLE IF EXISTS "integration";
 DROP TABLE IF EXISTS "join_key";
 DROP TABLE IF EXISTS "prefix_word";
 DROP TABLE IF EXISTS "suffix_word";
-DROP TABLE IF EXISTS "user";
+DROP TABLE IF EXISTS "base_user";
+DROP TABLE IF EXISTS "pseudo_user";
 DROP TABLE IF EXISTS "game_base";
 
 -- Drop types
@@ -48,7 +49,6 @@ DROP TYPE IF EXISTS "integration_name";
 DROP TYPE IF EXISTS "log_ceverity";
 DROP TYPE IF EXISTS "log_action";
 DROP TYPE IF EXISTS "subject_type";
-DROP TYPE IF EXISTS "user_type";
 DROP TYPE IF EXISTS "game_category";
 DROP TYPE IF EXISTS "gender";
 DROP TYPE IF EXISTS "game_type";

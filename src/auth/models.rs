@@ -35,8 +35,8 @@ pub struct Jwk {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EnsureGuestQuery {
-    pub guest_id: Option<Uuid>,
+pub struct EnsureUserQuery {
+    pub pseudo_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, Clone)]
