@@ -7,6 +7,7 @@ use axum::{
     response::IntoResponse,
     routing::{delete, get, patch, post, put},
 };
+use serde_json::json;
 use tracing::{error, info};
 use uuid::Uuid;
 
@@ -38,7 +39,6 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
         .route("/stats", get(get_user_activity_stats))
         .route("/config", get(get_config))
         .route("/popup", put(update_client_popup))
-        .route("/activity", patch(patch_user_activity))
         .with_state(state)
 }
 
@@ -71,7 +71,7 @@ async fn get_base_user_from_subject(
     Ok((StatusCode::OK, Json(user)))
 }
 
-// NOT TESTED
+// TODO - delete ??
 async fn validate_token(
     Extension(subject_id): Extension<SubjectId>,
 ) -> Result<impl IntoResponse, ServerError> {
@@ -100,6 +100,20 @@ async fn ensure_pseudo_user(
             pseudo_id
         }
     };
+
+    let pool = state.get_pool().clone();
+    tokio::spawn(async move {
+        if let Err(e) = db::update_pseudo_user_activity(&pool, pseudo_id).await {
+            let _ = state
+                .syslog()
+                .action(Action::Update)
+                .ceverity(LogCeverity::Warning)
+                .function("ensure_pseudo_user")
+                .description("Failed to update pseudo user activity")
+                .metadata(json!({"error": e.to_string()}))
+                .log();
+        };
+    });
 
     Ok((StatusCode::CREATED, Json(pseudo_id)))
 }
@@ -153,22 +167,6 @@ async fn delete_user(
     Ok(StatusCode::OK)
 }
 
-// NOT TESTED
-async fn patch_user_activity(
-    State(state): State<Arc<AppState>>,
-    Extension(subject_id): Extension<SubjectId>,
-    Extension(_claims): Extension<Claims>,
-) -> Result<impl IntoResponse, ServerError> {
-    let user_id = match subject_id {
-        SubjectId::BaseUser(id) | SubjectId::PseudoUser(id) => id,
-        _ => return Err(ServerError::AccessDenied),
-    };
-
-    db::update_pseudo_user_activity(state.get_pool(), user_id).await?;
-    Ok(StatusCode::OK)
-}
-
-// NOT TESTED
 // TODO - delete
 pub async fn auth0_trigger_endpoint(
     State(state): State<Arc<AppState>>,

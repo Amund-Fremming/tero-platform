@@ -407,7 +407,6 @@ async fn user_save_game(
     Ok(StatusCode::CREATED)
 }
 
-// NOT TESTED
 async fn delete_saved_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
