@@ -124,26 +124,24 @@ pub async fn delete_game(
 
 pub async fn save_game(
     pool: &Pool<Postgres>,
-    game_type: &GameType,
     user_id: Uuid,
     base_id: Uuid,
 ) -> Result<(), ServerError> {
     let row = sqlx::query(
         r#"
-        INSERT INTO "saved_game" (id, user_id, base_id, game_type)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO "saved_game" (id, user_id, base_id)
+        VALUES ($1, $2, $3)
         ON CONFLICT (user_id, base_id) DO NOTHING
         "#,
     )
     .bind(Uuid::new_v4())
     .bind(user_id)
     .bind(base_id)
-    .bind(game_type)
     .execute(pool)
     .await?;
 
     if row.rows_affected() == 0 {
-        warn!("User has already saved this game")
+        warn!("User has already saved this game");
     }
 
     Ok(())
@@ -151,19 +149,17 @@ pub async fn save_game(
 
 pub async fn delete_saved_game(
     pool: &Pool<Postgres>,
-    game_type: &GameType,
     user_id: Uuid,
-    game_id: Uuid,
+    base_id: Uuid,
 ) -> Result<(), ServerError> {
     let row = sqlx::query(
         r#"
         DELETE FROM "saved_game"
-        WHERE user_id = $1 AND id = $2 AND game_type = $3
+        WHERE user_id = $1 AND base_id = $2
         "#,
     )
     .bind(&user_id)
-    .bind(&game_id)
-    .bind(game_type)
+    .bind(&base_id)
     .execute(pool)
     .await?;
 

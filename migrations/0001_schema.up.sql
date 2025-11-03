@@ -49,8 +49,6 @@ CREATE TABLE "saved_game" (
     "id" UUID PRIMARY KEY,
     "user_id" UUID NOT NULL,
     "base_id" UUID NOT NULL,
-    -- TODO - Remove type ??
-    "game_type" game_type NOT NULL,
     UNIQUE ("base_id", "user_id")
 );
 
