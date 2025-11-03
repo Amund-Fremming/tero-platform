@@ -27,8 +27,6 @@ DROP INDEX IF EXISTS "idx_pseudo_user_last_active";
 
 DROP INDEX IF EXISTS "idx_base_user_id";
 DROP INDEX IF EXISTS "idx_base_user_auth0_id";
-DROP INDEX IF EXISTS "idx_base_user_guest_id" ;
-DROP INDEX IF EXISTS "idx_base_user_keys";
 
 -- Drop tables
 DROP TABLE IF EXISTS "saved_game";

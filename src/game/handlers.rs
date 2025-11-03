@@ -48,8 +48,8 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
         .route("/{game_type}/{game_id}", delete(delete_game))
         .route("/{game_type}/free-key/{key_word}", patch(free_game_key))
         .route("/{game_type}/save/{game_id}", post(user_save_game))
-        .route("/{game_type}/unsave/{game_id}", delete(delete_saved_game))
-        .route("/saved", get(get_saved_games_page))
+        .route("/{game_type}/unsave/{base_id}", delete(delete_saved_game))
+        .route("/saved", post(get_saved_games_page))
         .with_state(state.clone());
 
     let standalone_routes = Router::new()
@@ -123,7 +123,11 @@ async fn join_interactive_game(
         ));
     }
 
-    let hub_address = format!("{}hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
+    let hub_address = format!(
+        "{}hubs/{}",
+        CONFIG.server.gs_domain,
+        game_type.column_name()
+    );
     let response = InteractiveGameResponse {
         key_word,
         hub_address,
@@ -171,7 +175,11 @@ async fn create_interactive_game(
 
     gs_client.create_interactive_game(client, &envelope).await?;
 
-    let hub_address = format!("{}/hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
+    let hub_address = format!(
+        "{}/hubs/{}",
+        CONFIG.server.gs_domain,
+        game_type.column_name()
+    );
 
     let response = InteractiveGameResponse {
         key_word,
@@ -240,7 +248,11 @@ async fn initiate_interactive_game(
 
     gs_client.initiate_game_session(client, &envelope).await?;
 
-    let hub_address = format!("{}/hubs/{}", CONFIG.server.gs_domain, game_type.to_string());
+    let hub_address = format!(
+        "{}/hubs/{}",
+        CONFIG.server.gs_domain,
+        game_type.column_name()
+    );
 
     let response = InteractiveGameResponse {
         key_word,
@@ -250,7 +262,6 @@ async fn initiate_interactive_game(
     Ok((StatusCode::OK, Json(response)))
 }
 
-// NOT TESTED
 async fn get_game_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -382,18 +393,17 @@ async fn free_game_key(
     Ok(StatusCode::OK)
 }
 
-// NOT TESTED
 async fn user_save_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path((game_type, base_id)): Path<(GameType, Uuid)>,
+    Path((game_type, game_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::BaseUser(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");
         return Err(ServerError::AccessDenied);
     };
 
-    db::save_game(state.get_pool(), &game_type, user_id, base_id).await?;
+    db::save_game(state.get_pool(), &game_type, user_id, game_id).await?;
     Ok(StatusCode::CREATED)
 }
 
@@ -401,18 +411,17 @@ async fn user_save_game(
 async fn delete_saved_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path((game_type, saved_id)): Path<(GameType, Uuid)>,
+    Path((game_type, game_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::BaseUser(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");
         return Err(ServerError::AccessDenied);
     };
 
-    db::delete_saved_game(state.get_pool(), &game_type, user_id, saved_id).await?;
+    db::delete_saved_game(state.get_pool(), &game_type, user_id, game_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-// NOT TESTED
 async fn get_saved_games_page(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,

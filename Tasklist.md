@@ -133,8 +133,6 @@
 - [ ] delete user needs to delete auth0 user also
 - [ ] Webhook bug, refresh tokens treigger post login thing
 
-- strategy to avoid ghost regsitered users for stats
-
 - [ ] Expand refresh token / jwt to be longer than an hour
 - [ ] Better handling for ServerErrors (Rows not affected, cache error)
 - [ ] One endpoint to get all admin related data: stats, popup, config ??

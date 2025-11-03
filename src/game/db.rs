@@ -53,7 +53,10 @@ pub async fn get_game_page(
         ORDER BY times_played DESC
         LIMIT {} OFFSET {}
         "#,
-        request.game_type, category, limit, offset
+        request.game_type.column_name(),
+        category,
+        limit,
+        offset
     );
 
     debug!("Query: {}", query);
@@ -80,7 +83,7 @@ pub async fn increment_times_played(
         SET times_played = times_played + 1, last_played = $1
         WHERE id = $2
         "#,
-        game_type.to_string()
+        game_type.column_name()
     );
 
     let row = sqlx::query(&query)
@@ -107,7 +110,7 @@ pub async fn delete_game(
         DELETE FROM {}
         WHERE id = $1
         "#,
-        game_type.to_string()
+        game_type.column_name()
     );
 
     let row = sqlx::query(&query).bind(id).execute(pool).await?;
@@ -125,47 +128,22 @@ pub async fn save_game(
     user_id: Uuid,
     base_id: Uuid,
 ) -> Result<(), ServerError> {
-    let base_id_fut = sqlx::query_scalar::<_, Uuid>(
-        r#"
-        SELECT id
-        FROM "game_base"
-        WHERE id $1
-        "#,
-    )
-    .bind(&base_id)
-    .fetch_one(pool);
-
-    let query = format!(
-        r#"
-        SELECT id
-        FROM {}
-        WHERE id = $1
-        "#,
-        game_type
-    );
-
-    let game_id_fut = sqlx::query_scalar::<_, Uuid>(&query).fetch_one(pool);
-
-    let (base_id, game_id): (Result<Uuid, sqlx::Error>, Result<Uuid, sqlx::Error>) =
-        tokio::join!(base_id_fut, game_id_fut);
-
     let row = sqlx::query(
         r#"
-        INSERT INTO "saved_game" (user_id, base_id, game_id, game_type)
+        INSERT INTO "saved_game" (id, user_id, base_id, game_type)
         VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id, base_id) DO NOTHING
         "#,
     )
+    .bind(Uuid::new_v4())
     .bind(user_id)
-    .bind(base_id?)
-    .bind(game_id?)
+    .bind(base_id)
     .bind(game_type)
     .execute(pool)
     .await?;
 
     if row.rows_affected() == 0 {
-        return Err(ServerError::Internal(
-            "Failed to insert to table `saved_game`".into(),
-        ));
+        warn!("User has already saved this game")
     }
 
     Ok(())
@@ -175,21 +153,19 @@ pub async fn delete_saved_game(
     pool: &Pool<Postgres>,
     game_type: &GameType,
     user_id: Uuid,
-    saved_id: Uuid,
+    game_id: Uuid,
 ) -> Result<(), ServerError> {
-    let query = format!(
+    let row = sqlx::query(
         r#"
-        DELETE FROM {}
-        WHERE user_id = $1 AND id = $2
+        DELETE FROM "saved_game"
+        WHERE user_id = $1 AND id = $2 AND game_type = $3
         "#,
-        game_type
-    );
-
-    let row = sqlx::query(&query)
-        .bind(&user_id)
-        .bind(&saved_id)
-        .execute(pool)
-        .await?;
+    )
+    .bind(&user_id)
+    .bind(&game_id)
+    .bind(game_type)
+    .execute(pool)
+    .await?;
 
     if row.rows_affected() == 0 {
         return Err(ServerError::Internal(
@@ -222,7 +198,7 @@ pub async fn get_saved_games_page(
             base.last_played
         FROM "game_base" base
         JOIN "saved_game" saved
-        ON base.id = saved.game_id
+        ON base.id = saved.base_id
         WHERE saved.user_id = $1
         LIMIT {} OFFSET {}
         "#,

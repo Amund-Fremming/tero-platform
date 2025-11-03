@@ -148,7 +148,6 @@ pub struct BaseUser {
     pub id: Uuid,
     pub username: String,
     pub auth0_id: Option<String>,
-    pub last_active: DateTime<Utc>,
     pub gender: Gender,
     pub email: Option<String>,
     pub email_verified: Option<bool>,

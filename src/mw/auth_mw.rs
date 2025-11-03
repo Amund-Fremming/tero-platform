@@ -9,7 +9,7 @@ use axum::{
 };
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode, decode_header};
 use sqlx::{Pool, Postgres};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{
     auth::{
@@ -148,6 +148,7 @@ async fn handle_base_user(
 
     if base_user.id != pseudo_id {
         // Fire and forget
+        debug!("Syncing user");
         state.spawn_sync_user(base_user.id, pseudo_id);
     }
 

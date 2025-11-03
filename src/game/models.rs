@@ -61,11 +61,11 @@ pub enum GameType {
     Spin,
 }
 
-impl fmt::Display for GameType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl GameType {
+    pub fn column_name(&self) -> &'static str {
         match self {
-            GameType::Quiz => write!(f, "quiz"),
-            GameType::Spin => write!(f, "spin"),
+            GameType::Quiz => "quiz",
+            GameType::Spin => "spin",
         }
     }
 }

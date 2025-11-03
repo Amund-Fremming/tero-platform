@@ -49,9 +49,9 @@ CREATE TABLE "saved_game" (
     "id" UUID PRIMARY KEY,
     "user_id" UUID NOT NULL,
     "base_id" UUID NOT NULL,
-    "game_id" UUID NOT NULL,
+    -- TODO - Remove type ??
     "game_type" game_type NOT NULL,
-    UNIQUE ("base_id", "game_id")
+    UNIQUE ("base_id", "user_id")
 );
 
 CREATE TABLE "system_log" (
@@ -89,7 +89,6 @@ CREATE TABLE "base_user" (
     "id" UUID NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
     "username" VARCHAR (100) NOT NULL,
     "auth0_id" VARCHAR,
-    "guest_id" UUID,
     "birth_date" DATE,
     "gender" gender NOT NULL DEFAULT 'u',
     "email" VARCHAR(150),
@@ -143,9 +142,6 @@ CREATE INDEX "idx_pseudo_user_last_active" ON "pseudo_user" ("last_active");
 
 CREATE INDEX "idx_base_user_id" ON "base_user" ("id");
 CREATE INDEX "idx_base_user_auth0_id" ON "base_user" ("auth0_id");
-CREATE INDEX "idx_base_user_guest_id" ON "base_user" ("guest_id");
-CREATE INDEX "idx_base_user_keys" ON "base_user" ("id", "auth0_id", "guest_id");
-
 
 ALTER TABLE "saved_game" ADD CONSTRAINT "fk_saved_game_user" 
     FOREIGN KEY ("user_id") REFERENCES "pseudo_user"("id") ON DELETE CASCADE;

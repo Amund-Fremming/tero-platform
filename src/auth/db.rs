@@ -98,7 +98,7 @@ pub async fn get_base_user_by_auth0_id(
 ) -> Result<Option<BaseUser>, sqlx::Error> {
     sqlx::query_as::<_, BaseUser>(
         r#"
-        SELECT id, username, auth0_id, guest_id, birth_date, gender, email,
+        SELECT id, username, auth0_id, birth_date, gender, email,
             email_verified, family_name, updated_at, given_name, created_at
         FROM "base_user"
         WHERE auth0_id = $1
@@ -115,7 +115,7 @@ pub async fn get_base_user_by_id(
 ) -> Result<Option<BaseUser>, sqlx::Error> {
     sqlx::query_as::<_, BaseUser>(
         r#"
-        SELECT id, username, auth0_id, guest_id, birth_date, gender, email,
+        SELECT id, username, auth0_id, birth_date, gender, email,
             email_verified, family_name, updated_at, given_name, created_at
         FROM "base_user"
         WHERE id = $1
@@ -154,11 +154,11 @@ pub async fn create_pseudo_user(
     .await?;
 
     if row.len() == 0 {
-        return Err(ServerError::Internal("Failed to create guest id".into()));
+        return Err(ServerError::Internal("Failed to create pseudo id".into()));
     }
 
-    let guest_id = row.get("id");
-    Ok(guest_id)
+    let pseudo_id = row.get("id");
+    Ok(pseudo_id)
 }
 
 pub async fn create_base_user(
