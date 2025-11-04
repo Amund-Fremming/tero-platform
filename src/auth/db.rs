@@ -161,16 +161,17 @@ pub async fn create_pseudo_user(
     Ok(pseudo_id)
 }
 
+
 pub async fn create_base_user(
     pool: &Pool<Postgres>,
     auth0_user: &Auth0User,
 ) -> Result<(), ServerError> {
     let email = auth0_user.email.clone().unwrap_or("Kenneth".to_string());
-    let username = email.splitn(2, '@').next().unwrap_or("Kenneth").to_string();
+    let split = email.splitn(2, '@').next().unwrap_or("Kenneth").to_string();
 
     let username = match &auth0_user.username {
         Some(username) => username.to_string(),
-        None => username,
+        None => split,
     };
 
     // Extract names safely, with fallbacks to username split
