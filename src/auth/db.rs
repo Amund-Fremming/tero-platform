@@ -165,14 +165,24 @@ pub async fn create_base_user(
     pool: &Pool<Postgres>,
     auth0_user: &Auth0User,
 ) -> Result<(), ServerError> {
+    let email = auth0_user.email.clone().unwrap_or("Kenneth".to_string());
+    let username = email.splitn(2, '@').next().unwrap_or("Kenneth").to_string();
+
     let username = match &auth0_user.username {
         Some(username) => username.to_string(),
-        None => {
-            let email = auth0_user.email.clone().unwrap_or("Kenneth".to_string());
-            let username = email.splitn(2, '@').next().unwrap_or("Kenneth").to_string();
-            username
-        }
+        None => username,
     };
+
+    // Extract names safely, with fallbacks to username split
+    let given_name: &str = auth0_user
+        .given_name
+        .as_deref()
+        .unwrap_or_else(|| username.split('.').next().unwrap_or("John"));
+
+    let family_name: &str = auth0_user
+        .family_name
+        .as_deref()
+        .unwrap_or_else(|| username.split('.').nth(1).unwrap_or("Doe"));
 
     let result = sqlx::query(
         r#"
@@ -187,8 +197,8 @@ pub async fn create_base_user(
     .bind(&auth0_user.email)
     .bind(&auth0_user.email_verified)
     .bind(&auth0_user.updated_at)
-    .bind(&auth0_user.family_name)
-    .bind(&auth0_user.given_name)
+    .bind(family_name)  
+    .bind(given_name)   
     .bind(&auth0_user.created_at)
     .execute(pool)
     .await?;

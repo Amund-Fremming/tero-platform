@@ -144,3 +144,7 @@
 - [ ] dedicated users for registered and guest
     - use a link from regstered to guest
     - when geeting user stats, just retain away guests users with ids in normal users
+
+
+SMALL FIXES
+- [ ] On registration generate some family name and given name, and make sure username is unique
