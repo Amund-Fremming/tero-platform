@@ -147,4 +147,6 @@
 
 
 SMALL FIXES
-- [ ] On registration generate some family name and given name, and make sure username is unique
+- Patch user should chech for unique username and show error
+- Issues with user sync when login on to a new user
+- save game issue
