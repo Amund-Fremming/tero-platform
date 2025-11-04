@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, patch, post, put},
+    routing::{delete, get, post, put},
 };
 use serde_json::json;
 use tracing::{error, info};
