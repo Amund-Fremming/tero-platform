@@ -8,7 +8,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use serde_json::json;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
         db::{self},
         models::{
             Auth0User, Claims, EnsureUserQuery, ListUsersQuery, PatchUserRequest, Permission,
-            RestrictedConfig, SubjectId,
+            RestrictedConfig, SubjectId, UserRole,
         },
     },
     common::{app_state::AppState, error::ServerError, models::ClientPopup},
@@ -45,7 +45,7 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
 async fn get_base_user_from_subject(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Extension(_claims): Extension<Claims>,
+    Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ServerError> {
     let user_id = match subject_id {
         SubjectId::BaseUser(user_id) => user_id,
@@ -68,7 +68,17 @@ async fn get_base_user_from_subject(
         return Err(ServerError::NotFound("User not found".into()));
     };
 
-    Ok((StatusCode::OK, Json(user)))
+    match claims.missing_permission([Permission::ReadAdmin, Permission::WriteAdmin]) {
+        Some(missing) => {
+            debug!("Missing permissions {:?} to be admin", missing);
+            let wrapped = UserRole::BaseUser(user);
+            Ok((StatusCode::OK, Json(wrapped)))
+        }
+        None => {
+            let wrapped = UserRole::Admin(user);
+            Ok((StatusCode::OK, Json(wrapped)))
+        }
+    }
 }
 
 // TODO - delete ??
@@ -177,7 +187,10 @@ pub async fn auth0_trigger_endpoint(
         return Err(ServerError::AccessDenied);
     };
 
-    info!("Auth0 post registration trigger was triggered");
+    info!(
+        "Auth0 post registration trigger was triggered for {}",
+        auth0_user.email.clone().unwrap_or("[no email]".to_string())
+    );
     db::create_base_user(state.get_pool(), &auth0_user).await?;
 
     Ok(())

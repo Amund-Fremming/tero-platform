@@ -137,6 +137,8 @@
 
 
 **Bugs**
+- [ ] Claimms are not being set or taking with in token for admin
+- [ ] User login / registration synces pseudo id to base, if that user logs out then in with another user, the id stays the same
 - [ ] Auth0 trigger is triggered when refrsh token is used
 
 

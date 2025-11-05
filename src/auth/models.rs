@@ -135,6 +135,7 @@ pub enum UserType {
     Guest,
     #[serde(rename(deserialize = "registered"))]
     Registered,
+    Admin,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -156,6 +157,13 @@ pub struct BaseUser {
     pub given_name: Option<String>,
     pub created_at: DateTime<Utc>,
     pub birth_date: Option<NaiveDate>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "role", content = "user")]
+pub enum UserRole {
+    Admin(BaseUser),
+    BaseUser(BaseUser),
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]

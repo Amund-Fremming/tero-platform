@@ -4,13 +4,9 @@ use serde_json::json;
 
 use reqwest::Client;
 use sqlx::{Pool, Postgres};
-use uuid::Uuid;
 
 use crate::{
-    auth::{
-        db::{create_pseudo_user, pseudo_user_exists, set_base_user_id, try_delete_pseudo_user},
-        models::Jwks,
-    },
+    auth::models::Jwks,
     client::gs_client::GSClient,
     common::{
         cache::GustCache,
@@ -112,61 +108,6 @@ impl AppState {
                         .await;
                 }
             }
-        });
-    }
-
-    pub fn spawn_sync_user(&self, base_id: Uuid, pseudo_id: Uuid) {
-        let pool = self.get_pool().clone();
-
-        tokio::spawn(async move {
-            // Delete old synced pseudo_user if exists
-            if let Err(e) = try_delete_pseudo_user(&pool, &base_id).await {
-                let _ = SystemLogBuilder::new(&pool)
-                    .action(Action::Delete)
-                    .ceverity(LogCeverity::Warning)
-                    .description("Failed to delete zombie pseudo user, this needs manual deletion")
-                    .metadata(json!({"pseudo_user_id": base_id, "error": e.to_string()}))
-                    .function("try_delete_pseudo_user")
-                    .log();
-            }
-
-            let pseudo_exists = match pseudo_user_exists(&pool, pseudo_id).await {
-                Ok(exists) => exists,
-                Err(e) => {
-                    let _ = SystemLogBuilder::new(&pool)
-                        .action(Action::Read)
-                        .ceverity(LogCeverity::Warning)
-                        .description("Failed to read if pseudo user exists")
-                        .function("pseudo_user_exists")
-                        .metadata(json!({"base_user_id": base_id, "error": e.to_string()}))
-                        .log();
-
-                    false
-                }
-            };
-
-            if pseudo_exists {
-                if let Err(e) = set_base_user_id(&pool, pseudo_id, base_id).await {
-                    let _ = SystemLogBuilder::new(&pool)
-                        .action(Action::Update)
-                        .ceverity(LogCeverity::Critical)
-                        .description("Failed to sync pseudo user with base user by patching base user id")
-                        .function("set_base_user_id")
-                        .metadata(json!({"pseudo_user_id": pseudo_id, "base_user_id": base_id, "error": e.to_string()}))
-                        .log();
-                };
-                return;
-            };
-
-            if let Err(e) = create_pseudo_user(&pool, Some(pseudo_id)).await {
-                let _ = SystemLogBuilder::new(&pool)
-                    .action(Action::Create)
-                    .ceverity(LogCeverity::Critical)
-                    .description("Failed to pseudo user when syncing")
-                    .function("set_base_user_id")
-                    .metadata(json!({"pseudo_user_id": pseudo_id, "error": e.to_string()}))
-                    .log();
-            };
         });
     }
 }

@@ -9,7 +9,7 @@ use axum::{
 };
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode, decode_header};
 use sqlx::{Pool, Postgres};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
     auth::{
@@ -34,16 +34,13 @@ pub async fn auth_mw(
     let token_header = extract_header(AUTHORIZATION.as_str(), req.headers());
 
     match (pseudo_header, token_header) {
-        (Some(guest_header), None) => {
-            handle_pseudo_user(state.get_pool(), &mut req, &guest_header).await?;
-        }
-        (Some(guest_header), Some(token_header)) => {
-            handle_base_user(state.clone(), &mut req, &token_header, &guest_header).await?;
+        (Some(pseudo_header), ..) => {
+            handle_pseudo_user(state.get_pool(), &mut req, &pseudo_header).await?;
         }
         (None, Some(token_header)) => {
-            handle_m2m_token(state.clone(), &mut req, &token_header).await?;
+            handle_token_header(state.clone(), &mut req, &token_header).await?;
         }
-        (None, None) => {
+        _ => {
             error!("Unauthorized request");
             return Err(ServerError::AccessDenied);
         }
@@ -71,7 +68,7 @@ async fn handle_pseudo_user(
     Ok(())
 }
 
-async fn handle_m2m_token(
+async fn handle_token_header(
     state: Arc<AppState>,
     request: &mut Request<Body>,
     token_header: &str,
@@ -86,75 +83,39 @@ async fn handle_m2m_token(
     let token_data = verify_jwt(token, state.get_jwks()).await?;
     let claims: Claims = serde_json::from_value(token_data.claims)?;
 
-    if !claims.is_machine() {
-        error!("M2M token handler recieved a user token");
-        return Err(ServerError::AccessDenied);
-    }
+    let subject = match claims.is_machine() {
+        true => {
+            let Some(int_name) =
+                IntegrationName::from_subject(&claims.sub, &INTEGRATION_NAMES).await
+            else {
+                error!("Unknown integration subject: {}", claims.sub);
+                return Err(ServerError::AccessDenied);
+            };
 
-    let option: Option<IntegrationName> =
-        IntegrationName::from_subject(&claims.sub, &INTEGRATION_NAMES).await;
+            SubjectId::Integration(int_name)
+        }
+        false => {
+            let Some(base_user) =
+                get_base_user_by_auth0_id(state.get_pool(), claims.auth0_id()).await?
+            else {
+                state
+                    .syslog()
+                    .action(Action::Read)
+                    .ceverity(LogCeverity::Critical)
+                    .function("handle_base_user")
+                    .description("Failed to get base user from auth0 id in middleware")
+                    .log_async();
 
-    let Some(int_name) = option else {
-        error!("Unknown integration subject: {}", claims.sub);
-        return Err(ServerError::AccessDenied);
+                return Err(ServerError::Internal(
+                    "Sync error, auth0 id does not exist in out database".into(),
+                ));
+            };
+
+            SubjectId::BaseUser(base_user.id)
+        }
     };
 
-    let subject = SubjectId::Integration(int_name);
-    info!("Request by integration subject: {:?}", subject);
-
-    request.extensions_mut().insert(claims);
-    request.extensions_mut().insert(subject);
-
-    Ok(())
-}
-
-async fn handle_base_user(
-    state: Arc<AppState>,
-    request: &mut Request<Body>,
-    token_header: &str,
-    pseudo_header: &str,
-) -> Result<(), ServerError> {
-    let Some(token) = token_header.strip_prefix("Bearer ") else {
-        return Err(ServerError::Api(
-            StatusCode::UNAUTHORIZED,
-            "Missing auth token".into(),
-        ));
-    };
-
-    let token_data = verify_jwt(token, state.get_jwks()).await?;
-    let claims: Claims = serde_json::from_value(token_data.claims)?;
-
-    if claims.is_machine() {
-        error!("User token handler recieved a m2m token");
-        return Err(ServerError::AccessDenied);
-    }
-
-    let Some(base_user) = get_base_user_by_auth0_id(state.get_pool(), claims.auth0_id()).await?
-    else {
-        state
-            .syslog()
-            .action(Action::Read)
-            .ceverity(LogCeverity::Critical)
-            .function("handle_base_user")
-            .description("Failed to get base user from auth0 id in middleware")
-            .log_async();
-
-        return Err(ServerError::Internal(
-            "Sync error, auth0 id does not exist in out database".into(),
-        ));
-    };
-
-    let pseudo_id = to_uuid(pseudo_header)?;
-
-    if base_user.id != pseudo_id {
-        // Fire and forget
-        debug!("Syncing user");
-        state.spawn_sync_user(base_user.id, pseudo_id);
-    }
-
-    let subject = SubjectId::BaseUser(base_user.id);
     info!("Request by subject: {:?}", subject);
-
     request.extensions_mut().insert(claims);
     request.extensions_mut().insert(subject);
 

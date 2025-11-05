@@ -1,6 +1,6 @@
 use chrono::Utc;
 use serde_json::json;
-use sqlx::{Pool, Postgres, QueryBuilder, Row, query, query_as};
+use sqlx::{Pool, Postgres, QueryBuilder, query, query_as};
 use tracing::{error, warn};
 use uuid::Uuid;
 
@@ -18,19 +18,6 @@ use crate::{
     },
 };
 
-pub async fn try_delete_pseudo_user(pool: &Pool<Postgres>, id: &Uuid) -> Result<bool, sqlx::Error> {
-    let row = sqlx::query(
-        r#"
-        DELETE FROM "pseudo_user"
-        WHERE id = $1
-        "#,
-    )
-    .bind(id)
-    .execute(pool)
-    .await?;
-
-    return Ok(row.rows_affected() == 0);
-}
 
 pub async fn ensure_pseudo_user(pool: &Pool<Postgres>, id: Uuid) {
     let result = sqlx::query(
@@ -66,30 +53,6 @@ pub async fn ensure_pseudo_user(pool: &Pool<Postgres>, id: Uuid) {
             }
         }
     };
-}
-
-pub async fn set_base_user_id(
-    pool: &Pool<Postgres>,
-    new_id: Uuid,
-    old_id: Uuid,
-) -> Result<(), ServerError> {
-    let row = sqlx::query(
-        r#"
-        UPDATE "base_user"
-        SET id = $1
-        WHERE id = $2
-        "#,
-    )
-    .bind(new_id)
-    .bind(old_id)
-    .execute(pool)
-    .await?;
-
-    if row.rows_affected() == 0 {
-        return Err(ServerError::Internal("Failed to sync users".into()));
-    }
-
-    Ok(())
 }
 
 pub async fn get_base_user_by_auth0_id(
@@ -141,7 +104,7 @@ pub async fn create_pseudo_user(
 ) -> Result<Uuid, ServerError> {
     let id = id.unwrap_or(Uuid::new_v4());
 
-    let row = sqlx::query(
+    let pseudo_id: Uuid = sqlx::query_scalar::<_, Uuid>(
         r#"
         INSERT INTO "pseudo_user" (id, last_active)
         VALUES ($1, $2)
@@ -153,11 +116,6 @@ pub async fn create_pseudo_user(
     .fetch_one(pool)
     .await?;
 
-    if row.len() == 0 {
-        return Err(ServerError::Internal("Failed to create pseudo id".into()));
-    }
-
-    let pseudo_id = row.get("id");
     Ok(pseudo_id)
 }
 
@@ -206,7 +164,7 @@ pub async fn create_base_user(
 
     if result.rows_affected() == 0 {
         error!("Failed to create registered user");
-        return Err(ServerError::NotFound(
+        return Err(ServerError::Internal(
             "Failed to create registered user".into(),
         ));
     }
@@ -323,7 +281,6 @@ pub async fn list_base_users(
     Ok(response)
 }
 
-// TODO - update to count base + pseudo
 pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivityStats, sqlx::Error> {
     let recent_fut = sqlx::query_as::<_, RecentUserStats>(
         r#"
