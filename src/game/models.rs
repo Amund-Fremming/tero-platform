@@ -43,7 +43,7 @@ impl fmt::Display for GameCategory {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq)]
 #[sqlx(type_name = "gender", rename_all = "lowercase")]
 pub enum Gender {
     #[sqlx(rename = "m")]

@@ -134,7 +134,7 @@ async fn patch_user(
         return Ok(StatusCode::OK);
     }
 
-    if request.name.is_none() && request.email.is_none() && request.birth_date.is_none() {
+    if request == PatchUserRequest::default() {
         info!("User tried patching without a payload");
         return Ok(StatusCode::OK);
     }

@@ -54,8 +54,8 @@ pub async fn create_system_log(
 ) -> Result<(), ServerError> {
     let row = sqlx::query(
         r#"
-        INSERT INTO "system_log" (subject_id, action, ceverity, file_name, description, metadata, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO "system_log" (subject_id, subject_type, action, ceverity, file_name, description, metadata, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
     )
     .bind(subject_id)

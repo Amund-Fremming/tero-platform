@@ -241,20 +241,28 @@ pub async fn update_pseudo_user_activity(
 pub async fn patch_base_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,
-    put_request: PatchUserRequest,
+    request: PatchUserRequest,
 ) -> Result<(), ServerError> {
     let mut builder: QueryBuilder<'_, Postgres> = sqlx::QueryBuilder::new("UPDATE user SET ");
     let mut separator = builder.separated(", ");
 
-    if let Some(name) = put_request.name {
-        separator.push_unseparated("name = ").push_bind(name);
+    if let Some(username) = request.username {
+        separator.push_unseparated("username = ").push_bind(username);
     }
 
-    if let Some(email) = put_request.email {
-        separator.push_unseparated("email = ").push_bind(email);
+    if let Some(gname) = request.given_name{
+        separator.push_unseparated("given_name = ").push_bind(gname);
     }
 
-    if let Some(birth_date) = put_request.birth_date {
+    if let Some(fname) = request.family_name{
+        separator.push_unseparated("family_name = ").push_bind(fname);
+    }
+
+    if let Some(gender) = request.gender{
+        separator.push_unseparated("gender = ").push_bind(gender);
+    }
+
+    if let Some(birth_date) = request.birth_date {
         separator
             .push_unseparated("birth_date = ")
             .push_bind(birth_date);

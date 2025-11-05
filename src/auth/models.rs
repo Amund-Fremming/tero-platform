@@ -158,10 +158,12 @@ pub struct BaseUser {
     pub birth_date: Option<NaiveDate>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct PatchUserRequest {
-    pub name: Option<String>,
-    pub email: Option<String>,
+    pub username: Option<String>,
+    pub gender: Option<Gender>,
+    pub family_name: Option<String>,
+    pub given_name: Option<String>,
     pub birth_date: Option<NaiveDate>,
 }
 

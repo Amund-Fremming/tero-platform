@@ -127,26 +127,18 @@
 - [x] Go over indexes and optimize
 - [x] Create relations where possible
 - [x] Cascades
-- [ ] Rethink the user sync, maybe use the usertype with id, and never user guest_id. Easier lookups, faster, maybe the best solution? messy now, clients need two params every time
-- [ ] query params, limit offset on lsit users
-- [ ] Patch user needs update
-- [ ] delete user needs to delete auth0 user also
-- [ ] Webhook bug, refresh tokens treigger post login thing
 
-- [ ] Expand refresh token / jwt to be longer than an hour
-- [ ] Better handling for ServerErrors (Rows not affected, cache error)
+- [ ] delete user needs to delete auth0 user also
+
 - [ ] One endpoint to get all admin related data: stats, popup, config ??
 - [ ] Error handling for client, game full/game does not exist ..
 - [ ] Generic json response on initiate standalone game, its specific now
 
-**Maybe later**
-- [ ] Change webhook to use event streams from auth0, and handle events
-- [ ] dedicated users for registered and guest
-    - use a link from regstered to guest
-    - when geeting user stats, just retain away guests users with ids in normal users
 
 
-SMALL FIXES
-- Patch user should chech for unique username and show error
-- Issues with user sync when login on to a new user
-- save game issue
+**Bugs**
+- [ ] Auth0 trigger is triggered when refrsh token is used
+
+
+**Before release?**
+- [ ] Patch user should chech for unique username and show error

@@ -141,14 +141,18 @@ CREATE INDEX "idx_pseudo_user_last_active" ON "pseudo_user" ("last_active");
 CREATE INDEX "idx_base_user_id" ON "base_user" ("id");
 CREATE INDEX "idx_base_user_auth0_id" ON "base_user" ("auth0_id");
 
-ALTER TABLE "saved_game" ADD CONSTRAINT "fk_saved_game_user" 
-    FOREIGN KEY ("user_id") REFERENCES "pseudo_user"("id") ON DELETE CASCADE;
+ALTER TABLE "saved_game" 
+ADD CONSTRAINT "fk_saved_game_user" 
+FOREIGN KEY ("user_id") REFERENCES "base_user"("id") ON DELETE CASCADE;
 
-ALTER TABLE "saved_game" ADD CONSTRAINT "fk_saved_game_base" 
-    FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;
+ALTER TABLE "saved_game"
+ADD CONSTRAINT "fk_saved_game_base" 
+FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;
 
-ALTER TABLE "quiz_game" ADD CONSTRAINT "fk_quiz_game_base" 
-    FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;
+ALTER TABLE "quiz_game"
+ADD CONSTRAINT "fk_quiz_game_base" 
+FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;
 
-ALTER TABLE "spin_game" ADD CONSTRAINT "fk_spin_game_base" 
-    FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;
+ALTER TABLE "spin_game"
+ADD CONSTRAINT "fk_spin_game_base" 
+FOREIGN KEY ("base_id") REFERENCES "game_base"("id") ON DELETE CASCADE;
