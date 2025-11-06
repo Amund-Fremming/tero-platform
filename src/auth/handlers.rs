@@ -8,7 +8,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use serde_json::json;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -68,17 +68,12 @@ async fn get_base_user_from_subject(
         return Err(ServerError::NotFound("User not found".into()));
     };
 
-    match claims.missing_permission([Permission::ReadAdmin, Permission::WriteAdmin]) {
-        Some(missing) => {
-            debug!("Missing permissions {:?} to be admin", missing);
-            let wrapped = UserRole::BaseUser(user);
-            Ok((StatusCode::OK, Json(wrapped)))
-        }
-        None => {
-            let wrapped = UserRole::Admin(user);
-            Ok((StatusCode::OK, Json(wrapped)))
-        }
-    }
+    let wrapped = match claims.missing_permission([Permission::ReadAdmin, Permission::WriteAdmin]) {
+        Some(_missing) => UserRole::BaseUser(user),
+        None => UserRole::Admin(user),
+    };
+
+    Ok((StatusCode::OK, Json(wrapped)))
 }
 
 // TODO - delete ??
