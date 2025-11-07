@@ -30,8 +30,9 @@ gitignore path:
 
 # Exposes the backend to a public API
 ngrok:
-    ngrok config add-authtoken 2dsWWcIiJBVagPXlEfgdwtzPhKt_6j7fJvy3gfDkdHK3d4L5r
-    ngrok http http://localhost:3000
+    # ngrok http http://localhost:3000
+    # ngrok http http://setigerous-tamela-agitable.ngrok-free.dev
+    ngrok http --domain=setigerous-tamela-agitable.ngrok-free.dev 3000
 
 # Use this when your computer just started
 cold-start:

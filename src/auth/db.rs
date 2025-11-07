@@ -200,41 +200,35 @@ pub async fn patch_base_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,
     request: PatchUserRequest,
-) -> Result<(), ServerError> {
-    let mut builder: QueryBuilder<'_, Postgres> = sqlx::QueryBuilder::new("UPDATE user SET ");
+) -> Result<BaseUser, ServerError> {
+    let mut builder: QueryBuilder<'_, Postgres> = sqlx::QueryBuilder::new("UPDATE base_user SET ");
     let mut separator = builder.separated(", ");
 
     if let Some(username) = request.username {
-        separator.push_unseparated("username = ").push_bind(username);
+        separator.push("username = ").push_bind_unseparated(username);
     }
 
-    if let Some(gname) = request.given_name{
-        separator.push_unseparated("given_name = ").push_bind(gname);
+    if let Some(gname) = request.given_name {
+        separator.push("given_name = ").push_bind_unseparated(gname);
     }
 
-    if let Some(fname) = request.family_name{
-        separator.push_unseparated("family_name = ").push_bind(fname);
+    if let Some(fname) = request.family_name {
+        separator.push("family_name = ").push_bind_unseparated(fname);
     }
 
-    if let Some(gender) = request.gender{
-        separator.push_unseparated("gender = ").push_bind(gender);
+    if let Some(gender) = request.gender {
+        separator.push("gender = ").push_bind_unseparated(gender);
     }
 
     if let Some(birth_date) = request.birth_date {
-        separator
-            .push_unseparated("birth_date = ")
-            .push_bind(birth_date);
+        separator.push("birth_date = ").push_bind_unseparated(birth_date);
     }
 
-    builder.push(" WHERE user_id = ").push_bind(user_id);
-    let result = builder.build().execute(pool).await?;
-
-    if result.rows_affected() == 0 {
-        warn!("Query failed, no user with id: {}", user_id);
-        return Err(ServerError::NotFound("User does not exist".into()));
-    }
-
-    Ok(())
+    builder.push(" WHERE id = ").push_bind(user_id);  // Also fixed: use 'id', not 'user_id'
+    builder.push(" RETURNING id, username, auth0_id, birth_date, gender, email, email_verified, family_name, updated_at, given_name, created_at");
+    let result: BaseUser = builder.build_query_as().fetch_one(pool).await?;
+    
+    Ok(result)
 }
 
 pub async fn delete_base_user_by_id(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), ServerError> {

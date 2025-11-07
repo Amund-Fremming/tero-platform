@@ -128,18 +128,14 @@
 - [x] Create relations where possible
 - [x] Cascades
 
+
+
+- [ ] Use compile time checks with query macros 
 - [ ] delete user needs to delete auth0 user also
 
 - [ ] One endpoint to get all admin related data: stats, popup, config ??
 - [ ] Error handling for client, game full/game does not exist ..
 - [ ] Generic json response on initiate standalone game, its specific now
-
-
-
-**Bugs**
-- [ ] Claimms are not being set or taking with in token for admin
-- [ ] User login / registration synces pseudo id to base, if that user logs out then in with another user, the id stays the same
-- [ ] Auth0 trigger is triggered when refrsh token is used
 
 
 **Before release?**

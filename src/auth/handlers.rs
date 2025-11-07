@@ -4,7 +4,7 @@ use axum::{
     Extension, Json, Router,
     extract::{Path, Query, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     routing::{delete, get, post, put},
 };
 use serde_json::json;
@@ -123,29 +123,31 @@ async fn ensure_pseudo_user(
     Ok((StatusCode::CREATED, Json(pseudo_id)))
 }
 
-// NOT TESTED
+/*
+Update this to have id, wo only return no content if a admin updates another user id than itslef, now a admin cannot update its own values without gvetting blank back
+*/
 async fn patch_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
     Json(request): Json<PatchUserRequest>,
-) -> Result<impl IntoResponse, ServerError> {
+) -> Result<Response, ServerError> {
     let SubjectId::BaseUser(user_id) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
     if let None = claims.missing_permission([Permission::WriteAdmin]) {
         db::patch_base_user_by_id(state.get_pool(), &user_id, request).await?;
-        return Ok(StatusCode::OK);
+        return Ok(StatusCode::NO_CONTENT.into_response());
     }
 
     if request == PatchUserRequest::default() {
         info!("User tried patching without a payload");
-        return Ok(StatusCode::OK);
+        return Ok(StatusCode::NO_CONTENT.into_response());
     }
 
-    db::patch_base_user_by_id(state.get_pool(), &user_id, request).await?;
-    Ok(StatusCode::OK)
+    let user = db::patch_base_user_by_id(state.get_pool(), &user_id, request).await?;
+    Ok((StatusCode::OK, Json(user)).into_response())
 }
 
 // NOT TESTED
