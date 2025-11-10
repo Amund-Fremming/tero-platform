@@ -26,15 +26,15 @@ async fn health() -> impl IntoResponse {
 async fn health_detailed(
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let db_platform = "healthy".to_string(); // TODO - check real
+    let platform = true;
 
     let db_status = match db::health_check(state.get_pool()).await {
-        Ok(_) => "healthy".to_string(),
-        Err(_) => "unhealthy".to_string(),
+        Ok(_) => true,
+        Err(_) => false,
     };
 
     let session_status = match state.get_gs_client().health_check(state.get_client()).await {
-        Ok(_) => "healthy".to_string(),
+        Ok(_) => true,
         Err(e) => {
             error!("Failed game session health check: {}", e);
             state
@@ -45,12 +45,12 @@ async fn health_detailed(
                 .description("Failed health check on tero-session")
                 .log_async();
 
-            "unhealthy".to_string()
+            false
         }
     };
 
     let json = json!({
-        "platform": db_platform,
+        "platform": platform,
         "database": db_status,
         "session": session_status,
     });

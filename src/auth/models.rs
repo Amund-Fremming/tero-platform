@@ -177,22 +177,22 @@ pub struct PatchUserRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActivityStats {
-    pub total_game_count: i32,
-    pub total_user_count: i32,
+    pub total_game_count: i64,
+    pub total_user_count: i64,
     pub recent: RecentUserStats,
     pub average: AverageUserStats,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct RecentUserStats {
-    pub this_month: i32,
-    pub this_week: i32,
-    pub today: i32,
+    pub this_month_users: i64,
+    pub this_week_users: i64,
+    pub todays_users: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AverageUserStats {
-    pub avg_month_users: i32,
-    pub avg_week_users: i32,
-    pub avg_daily_users: i32,
+    pub avg_month_users: f64,
+    pub avg_week_users: f64,
+    pub avg_daily_users: f64,
 }

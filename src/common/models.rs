@@ -1,8 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-
-use crate::common::error::ServerError;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PagedResponse<T> {
@@ -39,12 +38,14 @@ impl PopupManager {
         }
     }
 
-    pub async fn update(&self, update: ClientPopup) -> Result<ClientPopup, ServerError> {
-        let mut lock = self.popup.write().map_err(|_| {
-            ServerError::Internal("Failed to toggle popup message because of lock error".into())
-        })?;
-
+    pub async fn update(&self, update: ClientPopup) -> ClientPopup {
+        let mut lock = self.popup.write().await;
         *lock = update.clone();
-        Ok(update)
+        update
+    }
+
+    pub async fn read(&self) -> ClientPopup {
+        let lock = self.popup.read().await;
+        lock.clone()
     }
 }

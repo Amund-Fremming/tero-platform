@@ -21,7 +21,9 @@ CREATE TYPE "log_action" AS ENUM (
     'create',
     'read',
     'update',
-    'delete'
+    'delete',
+    'sync',
+    'other'
 );
 
 CREATE TYPE "subject_type" AS ENUM (

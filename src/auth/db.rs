@@ -281,8 +281,8 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
         SELECT
             COUNT(*) FILTER (WHERE last_active >= date_trunc('month', CURRENT_DATE)) AS this_month_users,
             COUNT(*) FILTER (WHERE last_active >= date_trunc('week', CURRENT_DATE)) AS this_week_users,
-            COUNT(*) FILTER (WHERE last_active = CURRENT_DATE) AS todays_users,
-        FROM users
+            COUNT(*) FILTER (WHERE last_active >= CURRENT_DATE) AS todays_users
+        FROM pseudo_user
         "#
     )
     .fetch_one(pool);
@@ -290,24 +290,48 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
     let average_fut = sqlx::query_as::<_, AverageUserStats>(
         r#"
         SELECT
-            (SELECT AVG(cnt) FROM (SELECT COUNT(*) AS cnt FROM users GROUP BY date_trunc('month', created_at)) t) AS avg_month_users,
-            (SELECT AVG(cnt) FROM (SELECT COUNT(*) AS cnt FROM users GROUP BY date_trunc('week', created_at)) t) AS avg_week_users,
-            (SELECT AVG(cnt) FROM (SELECT COUNT(*) AS cnt FROM users GROUP BY created_at) t) AS avg_daily_users
+            COALESCE((
+                SELECT AVG(cnt)::float8 
+                FROM (
+                    SELECT COUNT(*) AS cnt 
+                    FROM pseudo_user 
+                    WHERE last_active >= CURRENT_DATE - INTERVAL '6 months'
+                    GROUP BY date_trunc('month', last_active)
+                ) t
+            ), 0) AS avg_month_users,
+            COALESCE((
+                SELECT AVG(cnt)::float8 
+                FROM (
+                    SELECT COUNT(*) AS cnt 
+                    FROM pseudo_user 
+                    WHERE last_active >= CURRENT_DATE - INTERVAL '8 weeks'
+                    GROUP BY date_trunc('week', last_active)
+                ) t
+            ), 0) AS avg_week_users,
+            COALESCE((
+                SELECT AVG(cnt)::float8 
+                FROM (
+                    SELECT COUNT(*) AS cnt 
+                    FROM pseudo_user 
+                    WHERE last_active >= CURRENT_DATE - INTERVAL '30 days'
+                    GROUP BY last_active::date
+                ) t
+            ), 0) AS avg_daily_users
         "#
     )
     .fetch_one(pool);
 
     let total_game_count_fut =
-        sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM games").fetch_one(pool);
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM game_base").fetch_one(pool);
 
     let total_user_count_fut =
-        sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM base_user").fetch_one(pool);
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM base_user").fetch_one(pool);
 
     let (recent, average, total_game_count, total_user_count): (
         Result<RecentUserStats, sqlx::Error>,
         Result<AverageUserStats, sqlx::Error>,
-        Result<i32, sqlx::Error>,
-        Result<i32, sqlx::Error>,
+        Result<i64, sqlx::Error>,
+        Result<i64, sqlx::Error>,
     ) = tokio::join!(
         recent_fut,
         average_fut,

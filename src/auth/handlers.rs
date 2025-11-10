@@ -27,13 +27,14 @@ use crate::{
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/ensure", post(ensure_pseudo_user))
+        .route("/popup", get(get_client_popup))
         .with_state(state)
 }
 
 pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/", get(get_base_user_from_subject).patch(patch_user))
-        .route("/{user_id}", delete(delete_user))
+        .route("/", get(get_base_user_from_subject))
+        .route("/{user_id}", delete(delete_user).patch(patch_user))
         .route("/list", get(list_all_users))
         .route("/valid-token", get(validate_token))
         .route("/stats", get(get_user_activity_stats))
@@ -130,13 +131,18 @@ async fn patch_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
+    Path(user_id): Path<Uuid>,
     Json(request): Json<PatchUserRequest>,
 ) -> Result<Response, ServerError> {
-    let SubjectId::BaseUser(user_id) = subject else {
+    let SubjectId::BaseUser(uid) = subject else {
         return Err(ServerError::AccessDenied);
     };
 
-    if let None = claims.missing_permission([Permission::WriteAdmin]) {
+    if claims
+        .missing_permission([Permission::WriteAdmin])
+        .is_none()
+        && user_id != uid
+    {
         db::patch_base_user_by_id(state.get_pool(), &user_id, request).await?;
         return Ok(StatusCode::NO_CONTENT.into_response());
     }
@@ -146,7 +152,7 @@ async fn patch_user(
         return Ok(StatusCode::NO_CONTENT.into_response());
     }
 
-    let user = db::patch_base_user_by_id(state.get_pool(), &user_id, request).await?;
+    let user = db::patch_base_user_by_id(state.get_pool(), &uid, request).await?;
     Ok((StatusCode::OK, Json(user)).into_response())
 }
 
@@ -269,7 +275,14 @@ async fn update_client_popup(
     }
 
     let manager = state.get_popup_manager();
-    let popup = manager.update(payload).await?;
+    let popup = manager.update(payload).await;
 
+    Ok((StatusCode::OK, Json(popup)))
+}
+
+pub async fn get_client_popup(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ServerError> {
+    let popup = state.get_popup_manager().read().await;
     Ok((StatusCode::OK, Json(popup)))
 }
