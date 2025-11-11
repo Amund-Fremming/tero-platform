@@ -81,7 +81,7 @@ CREATE TABLE "integration" (
 );
 
 CREATE TABLE "pseudo_user" (
-    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "id" UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4(),
     "last_active" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

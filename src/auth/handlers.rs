@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{os::macos::raw::stat, sync::Arc};
 
 use axum::{
     Extension, Json, Router,
@@ -34,13 +34,40 @@ pub fn public_auth_routes(state: Arc<AppState>) -> Router {
 pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(get_base_user_from_subject))
-        .route("/{user_id}", delete(delete_user).patch(patch_user))
+        .route(
+            "/{user_id}",
+            delete(delete_user)
+                .patch(patch_user)
+                .post(cleanup_subject_pseudo_id),
+        )
         .route("/list", get(list_all_users))
         .route("/valid-token", get(validate_token))
         .route("/stats", get(get_user_activity_stats))
         .route("/config", get(get_config))
         .route("/popup", put(update_client_popup))
         .with_state(state)
+}
+
+async fn cleanup_subject_pseudo_id(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Extension(_claims): Extension<Claims>,
+    Path(pseudo_id): Path<Uuid>,
+) -> Result<impl IntoResponse, ServerError> {
+    let SubjectId::BaseUser(_) = subject_id else {
+        return Err(ServerError::AccessDenied);
+    };
+
+    tokio::spawn(async move {
+        //  TODO - If base with pseudo id x exists skip, if not delete it
+        if let None = db::get_base_user_by_id(state.get_pool(), pseudo_id).await {
+            if let Ok(_) db::delete_pseudo_user(state.get_pool(), pseudo_id).await else {
+                // Syslog
+            }
+        }
+    });
+
+    Ok(StatusCode::OK)
 }
 
 async fn get_base_user_from_subject(
@@ -95,14 +122,14 @@ async fn ensure_pseudo_user(
     Query(query): Query<EnsureUserQuery>,
 ) -> Result<impl IntoResponse, ServerError> {
     let pseudo_id = match query.pseudo_id {
-        None => db::create_pseudo_user(state.get_pool(), None).await?,
+        None => db::create_pseudo_user(state.get_pool()).await?,
         Some(mut pseudo_id) => {
             let exists = db::pseudo_user_exists(state.get_pool(), pseudo_id).await?;
             if exists {
                 return Ok((StatusCode::OK, Json(pseudo_id)));
             }
 
-            pseudo_id = db::create_pseudo_user(state.get_pool(), None).await?;
+            pseudo_id = db::create_pseudo_user(state.get_pool()).await?;
             pseudo_id
         }
     };
@@ -194,9 +221,17 @@ pub async fn auth0_trigger_endpoint(
         "Auth0 post registration trigger was triggered for {}",
         auth0_user.email.clone().unwrap_or("[no email]".to_string())
     );
-    db::create_base_user(state.get_pool(), &auth0_user).await?;
+    let mut tx = state.get_pool().begin().await?;
+    let bid = db::create_base_user(&mut tx, &auth0_user).await?;
+    let pid = db::tx_create_pseudo_user(&mut tx, bid).await?;
 
-    Ok(())
+    if bid != pid {
+        return Err(ServerError::Internal("Failed to create user pair".into()));
+    }
+
+    tx.commit().await?;
+
+    Ok((StatusCode::CREATED, Json(pid)))
 }
 
 // NOT TESTED

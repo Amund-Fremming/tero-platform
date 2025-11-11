@@ -1,7 +1,7 @@
 use chrono::Utc;
 use serde_json::json;
-use sqlx::{Pool, Postgres, QueryBuilder, query, query_as};
-use tracing::{error, warn};
+use sqlx::{Pool, Postgres, QueryBuilder, Transaction, query, query_as};
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
@@ -18,6 +18,36 @@ use crate::{
     },
 };
 
+pub async fn create_pseudo_user(pool: &Pool<Postgres>) -> Result<Uuid, sqlx::Error> {
+    sqlx::query_scalar!(
+        r#"
+        INSERT INTO "pseudo_user" (id, last_active)
+        VALUES ($1, $2)
+        RETURNING id
+        "#,
+        Uuid::new_v4(),
+        Utc::now()
+    )
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn tx_create_pseudo_user(
+    tx: &mut Transaction<'_, Postgres>,
+    id: Uuid,
+) -> Result<Uuid, sqlx::Error> {
+    sqlx::query_scalar!(
+        r#"
+        INSERT INTO "pseudo_user" (id, last_active)
+        VALUES ($1, $2)
+        RETURNING id
+        "#,
+        id,
+        Utc::now()
+    )
+    .fetch_one(&mut **tx)
+    .await
+}
 
 pub async fn ensure_pseudo_user(pool: &Pool<Postgres>, id: Uuid) {
     let result = sqlx::query(
@@ -98,32 +128,10 @@ pub async fn pseudo_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool,
     Ok(exists.is_some())
 }
 
-pub async fn create_pseudo_user(
-    pool: &Pool<Postgres>,
-    id: Option<Uuid>,
-) -> Result<Uuid, ServerError> {
-    let id = id.unwrap_or(Uuid::new_v4());
-
-    let pseudo_id: Uuid = sqlx::query_scalar::<_, Uuid>(
-        r#"
-        INSERT INTO "pseudo_user" (id, last_active)
-        VALUES ($1, $2)
-        RETURNING id;
-        "#,
-    )
-    .bind(id)
-    .bind(Utc::now())
-    .fetch_one(pool)
-    .await?;
-
-    Ok(pseudo_id)
-}
-
-
 pub async fn create_base_user(
-    pool: &Pool<Postgres>,
+    tx: &mut Transaction<'_, Postgres>,
     auth0_user: &Auth0User,
-) -> Result<(), ServerError> {
+) -> Result<Uuid, ServerError> {
     let email = auth0_user.email.clone().unwrap_or("Kenneth".to_string());
     let split = email.splitn(2, '@').next().unwrap_or("Kenneth").to_string();
 
@@ -143,33 +151,27 @@ pub async fn create_base_user(
         .as_deref()
         .unwrap_or_else(|| username.split('.').nth(1).unwrap_or("Doe"));
 
-    let result = sqlx::query(
+    let id = sqlx::query_scalar!(
         r#"
         INSERT INTO "base_user" (id, username, auth0_id, gender, email, email_verified, updated_at, family_name, given_name, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id
         "#,
+        Uuid::new_v4(),
+        &username,
+        &auth0_user.auth0_id,
+        Gender::Unknown as Gender,
+        &auth0_user.email.clone().unwrap_or(format!("{}@mail.com", Uuid::new_v4())),
+        auth0_user.email_verified,
+        &auth0_user.updated_at,
+        family_name,
+        given_name ,
+        &auth0_user.created_at
     )
-    .bind(Uuid::new_v4())
-    .bind(&username)
-    .bind(&auth0_user.auth0_id)
-    .bind(Gender::Unknown)
-    .bind(&auth0_user.email)
-    .bind(&auth0_user.email_verified)
-    .bind(&auth0_user.updated_at)
-    .bind(family_name)  
-    .bind(given_name)   
-    .bind(&auth0_user.created_at)
-    .execute(pool)
+    .fetch_one(&mut **tx)
     .await?;
 
-    if result.rows_affected() == 0 {
-        error!("Failed to create registered user");
-        return Err(ServerError::Internal(
-            "Failed to create registered user".into(),
-        ));
-    }
-
-    Ok(())
+    Ok(id)
 }
 
 pub async fn update_pseudo_user_activity(
@@ -205,7 +207,9 @@ pub async fn patch_base_user_by_id(
     let mut separator = builder.separated(", ");
 
     if let Some(username) = request.username {
-        separator.push("username = ").push_bind_unseparated(username);
+        separator
+            .push("username = ")
+            .push_bind_unseparated(username);
     }
 
     if let Some(gname) = request.given_name {
@@ -213,7 +217,9 @@ pub async fn patch_base_user_by_id(
     }
 
     if let Some(fname) = request.family_name {
-        separator.push("family_name = ").push_bind_unseparated(fname);
+        separator
+            .push("family_name = ")
+            .push_bind_unseparated(fname);
     }
 
     if let Some(gender) = request.gender {
@@ -221,13 +227,15 @@ pub async fn patch_base_user_by_id(
     }
 
     if let Some(birth_date) = request.birth_date {
-        separator.push("birth_date = ").push_bind_unseparated(birth_date);
+        separator
+            .push("birth_date = ")
+            .push_bind_unseparated(birth_date);
     }
 
-    builder.push(" WHERE id = ").push_bind(user_id);  // Also fixed: use 'id', not 'user_id'
+    builder.push(" WHERE id = ").push_bind(user_id); // Also fixed: use 'id', not 'user_id'
     builder.push(" RETURNING id, username, auth0_id, birth_date, gender, email, email_verified, family_name, updated_at, given_name, created_at");
     let result: BaseUser = builder.build_query_as().fetch_one(pool).await?;
-    
+
     Ok(result)
 }
 
@@ -317,7 +325,7 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
                     GROUP BY last_active::date
                 ) t
             ), 0) AS avg_daily_users
-        "#
+        "#,
     )
     .fetch_one(pool);
 
