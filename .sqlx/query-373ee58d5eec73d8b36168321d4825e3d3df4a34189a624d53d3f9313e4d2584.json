@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT word FROM prefix_word",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "word",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "373ee58d5eec73d8b36168321d4825e3d3df4a34189a624d53d3f9313e4d2584"
+}

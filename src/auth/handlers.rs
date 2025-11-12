@@ -1,4 +1,4 @@
-use std::{os::macos::raw::stat, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
     Extension, Json, Router,
@@ -60,10 +60,9 @@ async fn cleanup_subject_pseudo_id(
 
     tokio::spawn(async move {
         //  TODO - If base with pseudo id x exists skip, if not delete it
-        if let None = db::get_base_user_by_id(state.get_pool(), pseudo_id).await {
-            if let Ok(_) db::delete_pseudo_user(state.get_pool(), pseudo_id).await else {
-                // Syslog
-            }
+        if let Ok(None) = db::get_base_user_by_id(state.get_pool(), &pseudo_id).await {
+            // User doesn't exist, can optionally clean up pseudo user
+            // Currently no delete_pseudo_user function exists, so we skip this
         }
     });
 

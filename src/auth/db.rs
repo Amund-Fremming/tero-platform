@@ -1,6 +1,6 @@
 use chrono::Utc;
 use serde_json::json;
-use sqlx::{Pool, Postgres, QueryBuilder, Transaction, query, query_as};
+use sqlx::{Pool, Postgres, QueryBuilder, Transaction};
 use tracing::warn;
 use uuid::Uuid;
 
@@ -19,14 +19,16 @@ use crate::{
 };
 
 pub async fn create_pseudo_user(pool: &Pool<Postgres>) -> Result<Uuid, sqlx::Error> {
+    let id = Uuid::new_v4();
+    let last_active = Utc::now();
     sqlx::query_scalar!(
         r#"
         INSERT INTO "pseudo_user" (id, last_active)
         VALUES ($1, $2)
         RETURNING id
         "#,
-        Uuid::new_v4(),
-        Utc::now()
+        id,
+        last_active
     )
     .fetch_one(pool)
     .await
@@ -36,6 +38,7 @@ pub async fn tx_create_pseudo_user(
     tx: &mut Transaction<'_, Postgres>,
     id: Uuid,
 ) -> Result<Uuid, sqlx::Error> {
+    let last_active = Utc::now();
     sqlx::query_scalar!(
         r#"
         INSERT INTO "pseudo_user" (id, last_active)
@@ -43,22 +46,23 @@ pub async fn tx_create_pseudo_user(
         RETURNING id
         "#,
         id,
-        Utc::now()
+        last_active
     )
     .fetch_one(&mut **tx)
     .await
 }
 
 pub async fn ensure_pseudo_user(pool: &Pool<Postgres>, id: Uuid) {
-    let result = sqlx::query(
+    let last_active = Utc::now();
+    let result = sqlx::query!(
         r#"
         INSERT INTO "pseudo_user" (id, last_active)
         VALUES ($1, $2)
         ON CONFLICT DO NOTHING
         "#,
+        id,
+        last_active
     )
-    .bind(id)
-    .bind(Utc::now())
     .execute(pool)
     .await;
 
@@ -89,15 +93,16 @@ pub async fn get_base_user_by_auth0_id(
     pool: &Pool<Postgres>,
     auth0_id: &str,
 ) -> Result<Option<BaseUser>, sqlx::Error> {
-    sqlx::query_as::<_, BaseUser>(
+    sqlx::query_as!(
+        BaseUser,
         r#"
-        SELECT id, username, auth0_id, birth_date, gender, email,
+        SELECT id, username, auth0_id, birth_date, gender as "gender: _", email,
             email_verified, family_name, updated_at, given_name, created_at
         FROM "base_user"
         WHERE auth0_id = $1
         "#,
+        auth0_id
     )
-    .bind(auth0_id)
     .fetch_optional(pool)
     .await
 }
@@ -106,22 +111,22 @@ pub async fn get_base_user_by_id(
     pool: &Pool<Postgres>,
     user_id: &Uuid,
 ) -> Result<Option<BaseUser>, sqlx::Error> {
-    sqlx::query_as::<_, BaseUser>(
+    sqlx::query_as!(
+        BaseUser,
         r#"
-        SELECT id, username, auth0_id, birth_date, gender, email,
+        SELECT id, username, auth0_id, birth_date, gender as "gender: _", email,
             email_verified, family_name, updated_at, given_name, created_at
         FROM "base_user"
         WHERE id = $1
         "#,
+        user_id
     )
-    .bind(user_id)
     .fetch_optional(pool)
     .await
 }
 
 pub async fn pseudo_user_exists(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, sqlx::Error> {
-    let exists = sqlx::query_scalar::<_, Uuid>("SELECT id FROM \"pseudo_user\" WHERE id = $1")
-        .bind(id)
+    let exists = sqlx::query_scalar!("SELECT id FROM pseudo_user WHERE id = $1", id)
         .fetch_optional(pool)
         .await?;
 
@@ -151,22 +156,26 @@ pub async fn create_base_user(
         .as_deref()
         .unwrap_or_else(|| username.split('.').nth(1).unwrap_or("Doe"));
 
+    let id = Uuid::new_v4();
+    let gender = Gender::Unknown;
+    let email_value = auth0_user.email.clone().unwrap_or(format!("{}@mail.com", Uuid::new_v4()));
+    
     let id = sqlx::query_scalar!(
         r#"
         INSERT INTO "base_user" (id, username, auth0_id, gender, email, email_verified, updated_at, family_name, given_name, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id
         "#,
-        Uuid::new_v4(),
-        &username,
-        &auth0_user.auth0_id,
-        Gender::Unknown as Gender,
-        &auth0_user.email.clone().unwrap_or(format!("{}@mail.com", Uuid::new_v4())),
+        id,
+        username,
+        auth0_user.auth0_id,
+        gender as _,
+        email_value,
         auth0_user.email_verified,
-        &auth0_user.updated_at,
+        auth0_user.updated_at,
         family_name,
-        given_name ,
-        &auth0_user.created_at
+        given_name,
+        auth0_user.created_at
     )
     .fetch_one(&mut **tx)
     .await?;
@@ -178,15 +187,16 @@ pub async fn update_pseudo_user_activity(
     pool: &Pool<Postgres>,
     id: Uuid,
 ) -> Result<(), ServerError> {
-    let row = sqlx::query(
+    let last_active = Utc::now();
+    let row = sqlx::query!(
         r#"
         UPDATE "pseudo_user"
         SET last_active = $1
         WHERE id = $2
         "#,
+        last_active,
+        id
     )
-    .bind(&Utc::now())
-    .bind(&id)
     .execute(pool)
     .await?;
 
@@ -240,12 +250,12 @@ pub async fn patch_base_user_by_id(
 }
 
 pub async fn delete_base_user_by_id(pool: &Pool<Postgres>, id: &Uuid) -> Result<(), ServerError> {
-    let result = query(
+    let result = sqlx::query!(
         r#"
         DELETE FROM "base_user" WHERE id = $1;
         "#,
+        id
     )
-    .bind(id)
     .execute(pool)
     .await?;
 
@@ -264,16 +274,17 @@ pub async fn list_base_users(
     let offset = CONFIG.server.page_size * query.page_num;
     let limit = CONFIG.server.page_size + 1;
 
-    let items = query_as::<_, BaseUser>(
+    let items = sqlx::query_as!(
+        BaseUser,
         r#"
-        SELECT id, username, auth0_id, gender, email, email_verified, updated_at, family_name, given_name, created_at
+        SELECT id, username, auth0_id, birth_date, gender as "gender: _", email, email_verified, updated_at, family_name, given_name, created_at
         FROM "base_user"
-        OFFSET = $1 LIMIT = $2
         ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2
         "#,
+        limit as i64,
+        offset as i64
     )
-    .bind(offset as i32)
-    .bind(limit as i32)
     .fetch_all(pool)
     .await?;
 
@@ -284,18 +295,20 @@ pub async fn list_base_users(
 }
 
 pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivityStats, sqlx::Error> {
-    let recent_fut = sqlx::query_as::<_, RecentUserStats>(
+    let recent_fut = sqlx::query_as!(
+        RecentUserStats,
         r#"
         SELECT
-            COUNT(*) FILTER (WHERE last_active >= date_trunc('month', CURRENT_DATE)) AS this_month_users,
-            COUNT(*) FILTER (WHERE last_active >= date_trunc('week', CURRENT_DATE)) AS this_week_users,
-            COUNT(*) FILTER (WHERE last_active >= CURRENT_DATE) AS todays_users
+            COUNT(*) FILTER (WHERE last_active >= date_trunc('month', CURRENT_DATE)) AS "this_month_users!",
+            COUNT(*) FILTER (WHERE last_active >= date_trunc('week', CURRENT_DATE)) AS "this_week_users!",
+            COUNT(*) FILTER (WHERE last_active >= CURRENT_DATE) AS "todays_users!"
         FROM pseudo_user
         "#
     )
     .fetch_one(pool);
 
-    let average_fut = sqlx::query_as::<_, AverageUserStats>(
+    let average_fut = sqlx::query_as!(
+        AverageUserStats,
         r#"
         SELECT
             COALESCE((
@@ -306,7 +319,7 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
                     WHERE last_active >= CURRENT_DATE - INTERVAL '6 months'
                     GROUP BY date_trunc('month', last_active)
                 ) t
-            ), 0) AS avg_month_users,
+            ), 0) AS "avg_month_users!",
             COALESCE((
                 SELECT AVG(cnt)::float8 
                 FROM (
@@ -315,7 +328,7 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
                     WHERE last_active >= CURRENT_DATE - INTERVAL '8 weeks'
                     GROUP BY date_trunc('week', last_active)
                 ) t
-            ), 0) AS avg_week_users,
+            ), 0) AS "avg_week_users!",
             COALESCE((
                 SELECT AVG(cnt)::float8 
                 FROM (
@@ -324,22 +337,22 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
                     WHERE last_active >= CURRENT_DATE - INTERVAL '30 days'
                     GROUP BY last_active::date
                 ) t
-            ), 0) AS avg_daily_users
+            ), 0) AS "avg_daily_users!"
         "#,
     )
     .fetch_one(pool);
 
     let total_game_count_fut =
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM game_base").fetch_one(pool);
+        sqlx::query_scalar!("SELECT COUNT(*)::bigint as count FROM game_base").fetch_one(pool);
 
     let total_user_count_fut =
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM base_user").fetch_one(pool);
+        sqlx::query_scalar!("SELECT COUNT(*)::bigint as count FROM base_user").fetch_one(pool);
 
     let (recent, average, total_game_count, total_user_count): (
         Result<RecentUserStats, sqlx::Error>,
         Result<AverageUserStats, sqlx::Error>,
-        Result<i64, sqlx::Error>,
-        Result<i64, sqlx::Error>,
+        Result<Option<i64>, sqlx::Error>,
+        Result<Option<i64>, sqlx::Error>,
     ) = tokio::join!(
         recent_fut,
         average_fut,
@@ -348,8 +361,8 @@ pub async fn get_user_activity_stats(pool: &Pool<Postgres>) -> Result<ActivitySt
     );
 
     Ok(ActivityStats {
-        total_game_count: total_game_count?,
-        total_user_count: total_user_count?,
+        total_game_count: total_game_count?.unwrap_or(0),
+        total_user_count: total_user_count?.unwrap_or(0),
         recent: recent?,
         average: average?,
     })

@@ -11,13 +11,13 @@ use crate::{
 
 pub async fn delete_non_active_games(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
     let timeout = Utc::now() - Duration::days(24);
-    sqlx::query(
+    sqlx::query!(
         r#"
         DELETE FROM "game_base"
         WHERE last_played < $1
         "#,
+        timeout
     )
-    .bind(timeout)
     .execute(pool)
     .await?;
 
@@ -127,16 +127,17 @@ pub async fn save_game(
     user_id: Uuid,
     base_id: Uuid,
 ) -> Result<(), ServerError> {
-    let row = sqlx::query(
+    let id = Uuid::new_v4();
+    let row = sqlx::query!(
         r#"
         INSERT INTO "saved_game" (id, user_id, base_id)
         VALUES ($1, $2, $3)
         ON CONFLICT (user_id, base_id) DO NOTHING
         "#,
+        id,
+        user_id,
+        base_id
     )
-    .bind(Uuid::new_v4())
-    .bind(user_id)
-    .bind(base_id)
     .execute(pool)
     .await?;
 
@@ -152,14 +153,14 @@ pub async fn delete_saved_game(
     user_id: Uuid,
     base_id: Uuid,
 ) -> Result<(), ServerError> {
-    let row = sqlx::query(
+    let row = sqlx::query!(
         r#"
         DELETE FROM "saved_game"
         WHERE user_id = $1 AND base_id = $2
         "#,
+        user_id,
+        base_id
     )
-    .bind(&user_id)
-    .bind(&base_id)
     .execute(pool)
     .await?;
 

@@ -52,20 +52,21 @@ pub async fn create_system_log(
     description: &str,
     metadata: &Option<serde_json::Value>,
 ) -> Result<(), ServerError> {
-    let row = sqlx::query(
+    let created_at = Utc::now();
+    let row = sqlx::query!(
         r#"
         INSERT INTO "system_log" (subject_id, subject_type, action, ceverity, file_name, description, metadata, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
+        subject_id,
+        subject_type as _,
+        action as _,
+        ceverity as _,
+        file_name,
+        description,
+        metadata as _,
+        created_at
     )
-    .bind(subject_id)
-    .bind(subject_type)
-    .bind(action)
-    .bind(ceverity)
-    .bind(file_name)
-    .bind(description)
-    .bind(metadata)
-    .bind(Utc::now())
     .execute(pool)
     .await?;
 

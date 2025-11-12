@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, username, auth0_id, birth_date, gender as \"gender: _\", email, email_verified, updated_at, family_name, given_name, created_at\n        FROM \"base_user\"\n        ORDER BY created_at DESC\n        LIMIT $1 OFFSET $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "auth0_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "birth_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 4,
+        "name": "gender: _",
+        "type_info": {
+          "Custom": {
+            "name": "gender",
+            "kind": {
+              "Enum": [
+                "m",
+                "f",
+                "u"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "email_verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "family_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "given_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "432e7ce71551df6bf972cfb7d2c2db1ee554d086f568526a8ab4b6576d11918a"
+}

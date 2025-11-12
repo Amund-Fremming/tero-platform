@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT word FROM suffix_word",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "word",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bf5f416fee067935277ff113456b9c193519105f4a12698bfc5765bfd1708aa4"
+}

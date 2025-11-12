@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO \"system_log\" (subject_id, subject_type, action, ceverity, file_name, description, metadata, created_at)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        {
+          "Custom": {
+            "name": "subject_type",
+            "kind": {
+              "Enum": [
+                "registered_user",
+                "guest_user",
+                "integration",
+                "system"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "log_action",
+            "kind": {
+              "Enum": [
+                "create",
+                "read",
+                "update",
+                "delete",
+                "sync",
+                "other"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "log_ceverity",
+            "kind": {
+              "Enum": [
+                "critical",
+                "warning",
+                "info"
+              ]
+            }
+          }
+        },
+        "Varchar",
+        "Varchar",
+        "Jsonb",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "52ddc720d3f3a39c805d37cedf1a51edc0dd01eedf3769bb44ed300464eee7e8"
+}

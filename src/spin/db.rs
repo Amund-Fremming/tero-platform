@@ -12,26 +12,27 @@ pub async fn get_spin_session_by_game_id(
     user_id: Uuid,
     game_id: Uuid,
 ) -> Result<SpinSession, ServerError> {
-    let game = sqlx::query_as::<_, SpinGame>(
+    let game = sqlx::query_as!(
+        SpinGame,
         r#"
         SELECT
             base.id AS base_id,
             spin.id AS spin_id,
             base.name,
             base.description,
-            base.game_type,
-            base.category,
+            base.game_type as "game_type: _",
+            base.category as "category: _",
             base.iterations,
-            base.times_played
-            base.last_played
+            base.times_played,
+            base.last_played,
             spin.rounds
         FROM "game_base" base
         JOIN "spin_game" spin
         ON base.id = spin.base_id
         WHERE base.id = $1
         "#,
+        game_id
     )
-    .bind(game_id)
     .fetch_one(pool)
     .await?;
 
@@ -43,31 +44,34 @@ pub async fn tx_persist_spin_session(
     tx: &mut Transaction<'_, Postgres>,
     session: &SpinSession,
 ) -> Result<(), ServerError> {
-    let game_row = sqlx::query(
+    let last_played = Utc::now();
+    let game_row = sqlx::query!(
         r#"
         INSERT INTO "game_base" (id, name, description, game_type, category, iterations, times_played, last_played)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
+        session.base_id,
+        session.name,
+        session.description,
+        session.game_type as _,
+        session.category as _,
+        session.iterations,
+        session.times_played,
+        last_played
     )
-    .bind(&session.base_id)
-    .bind(&session.name)
-    .bind(&session.description)
-    .bind(&session.category)
-    .bind(&session.iterations)
-    .bind(&session.times_played)
-    .bind(Utc::now())
     .execute(&mut **tx)
     .await?;
 
-    let round_row = sqlx::query(
+    let spin_id = Uuid::new_v4();
+    let round_row = sqlx::query!(
         r#"
         INSERT INTO "spin_game" (id, base_id, rounds)
         VALUES ($1, $2, $3)
         "#,
+        spin_id,
+        session.base_id,
+        &session.rounds
     )
-    .bind(Uuid::new_v4())
-    .bind(&session.base_id)
-    .bind(&session.rounds)
     .execute(&mut **tx)
     .await?;
 

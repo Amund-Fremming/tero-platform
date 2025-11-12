@@ -1,6 +1,6 @@
 use sqlx::{Pool, Postgres};
 
 pub async fn health_check(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
-    sqlx::query("SELECT 1").execute(pool).await?;
+    let _ = sqlx::query_scalar!("SELECT 1 as one").fetch_one(pool).await?;
     Ok(())
 }
