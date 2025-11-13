@@ -5,7 +5,7 @@ mod tests {
     use dotenv::dotenv;
     use tracing::level_filters::LevelFilter;
 
-    use crate::common::{app_state::AppState, key_vault::KeyVaultError};
+    use crate::{models::app_state::AppState, service::key_vault::KeyVaultError};
 
     fn setup_logging() {
         tracing_subscriber::FmtSubscriber::builder()

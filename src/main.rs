@@ -2,36 +2,35 @@ use std::collections::HashMap;
 
 use axum::{Router, middleware::from_fn_with_state, routing::post};
 use dotenv::dotenv;
+use models::app_state::AppState;
 use sqlx::{Pool, Postgres};
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use crate::{
-    auth::handlers::{auth0_trigger_endpoint, protected_auth_routes, public_auth_routes},
-    common::{app_state::AppState, error::ServerError},
-    config::config::CONFIG,
-    game::handlers::game_routes,
-    health::handlers::health_routes,
-    integration::{
-        db,
-        models::{INTEGRATION_IDS, INTEGRATION_NAMES, IntegrationName},
+    api::{
+        auth_mw::auth_mw,
+        game_base::game_routes,
+        health::health_routes,
+        system_log::log_routes,
+        user::{auth0_trigger_endpoint, protected_auth_routes, public_auth_routes},
+        webhook_mw::webhook_mw,
     },
-    mw::{auth_mw::auth_mw, webhook_mw::webhook_mw},
-    system_log::handlers::log_routes,
+    config::config::CONFIG,
+    db::integration,
+    models::{
+        error::ServerError,
+        integration::{INTEGRATION_IDS, INTEGRATION_NAMES, IntegrationName},
+    },
 };
 
-mod auth;
+mod api;
 mod client;
-mod common;
 mod config;
-mod game;
-mod health;
-mod integration;
-mod mw;
-mod quiz;
-mod spin;
-mod system_log;
+mod db;
+mod models;
+mod service;
 mod tests;
 
 #[tokio::main]
@@ -99,7 +98,7 @@ async fn main() {
 }
 
 async fn load_integrations(pool: &Pool<Postgres>) -> Result<(), ServerError> {
-    let integrations = db::list_integrations(pool).await?;
+    let integrations = integration::list_integrations(pool).await?;
 
     let integration_names: HashMap<String, IntegrationName> = integrations
         .iter()

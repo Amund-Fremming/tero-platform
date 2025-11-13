@@ -130,7 +130,8 @@
 
 
 
-- [ ] Use compile time checks with query macros 
+- [ ] Move increment games played when you join now when storing a game
+- [x] Use compile time checks with query macros 
 - [ ] delete user needs to delete auth0 user also
 
 - [ ] One endpoint to get all admin related data: stats, popup, config ??

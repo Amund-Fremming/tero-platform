@@ -2,7 +2,25 @@ use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::{client::gs_client_error::GSClientError, game::models::GameEnvelope};
+use crate::models::game_base::GameEnvelope;
+
+#[derive(Debug, thiserror::Error)]
+pub enum GSClientError {
+    #[error("The game is full")]
+    Full,
+
+    #[error("The game has started")]
+    Started,
+
+    #[error("Http request failed: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("Api error: {0} - {1}")]
+    ApiError(StatusCode, String),
+
+    #[error("Failed to serialize object: {0}")]
+    Serialize(#[from] serde_json::Error),
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InteractiveGameResponse {
