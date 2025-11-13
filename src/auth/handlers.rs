@@ -8,7 +8,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use serde_json::json;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -21,7 +21,10 @@ use crate::{
     },
     common::{app_state::AppState, error::ServerError, models::ClientPopup},
     config::config::CONFIG,
-    system_log::models::{Action, LogCeverity, SubjectType},
+    system_log::{
+        builder::SystemLogBuilder,
+        models::{Action, LogCeverity},
+    },
 };
 
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {
@@ -41,7 +44,6 @@ pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
                 .post(cleanup_subject_pseudo_id),
         )
         .route("/list", get(list_all_users))
-        .route("/valid-token", get(validate_token))
         .route("/stats", get(get_user_activity_stats))
         .route("/config", get(get_config))
         .route("/popup", put(update_client_popup))
@@ -54,15 +56,55 @@ async fn cleanup_subject_pseudo_id(
     Extension(_claims): Extension<Claims>,
     Path(pseudo_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::BaseUser(_) = subject_id else {
+    let SubjectId::BaseUser(base_id) = subject_id else {
         return Err(ServerError::AccessDenied);
     };
 
+    if base_id == pseudo_id {
+        // Already exists a base user
+        return Ok(StatusCode::OK);
+    }
+
+    let pool = state.get_pool().clone();
     tokio::spawn(async move {
-        //  TODO - If base with pseudo id x exists skip, if not delete it
-        if let Ok(None) = db::get_base_user_by_id(state.get_pool(), &pseudo_id).await {
-            // User doesn't exist, can optionally clean up pseudo user
-            // Currently no delete_pseudo_user function exists, so we skip this
+        let state = state.clone();
+        let subject_id = subject_id.clone();
+
+        let base_user = match db::get_base_user_by_id(state.get_pool(), pseudo_id).await {
+            Ok(option) => option,
+            Err(e) => {
+                let _ = SystemLogBuilder::new(&pool)
+                    .action(Action::Read)
+                    .ceverity(LogCeverity::Warning)
+                    .function("cleanup_subject_pseudo_id")
+                    .description("Failed to fetch base user for pseudo user cleanup")
+                    .subject(subject_id)
+                    .metadata(json!({"pseudo_user_id": pseudo_id, "error": e.to_string()}))
+                    .log();
+
+                return;
+            }
+        };
+
+        if let Some(_) = base_user {
+            debug!("Base user exists for pseudo user, skipping cleanup");
+            return;
+        }
+
+        let (deleted, error) = match db::delete_pseudo_user(state.get_pool(), pseudo_id).await {
+            Ok(deleted) => (deleted, "no error".to_string()),
+            Err(e) => (false, e.to_string()),
+        };
+
+        if !deleted {
+            let _ = SystemLogBuilder::new(&pool)
+                .action(Action::Read)
+                .ceverity(LogCeverity::Critical)
+                .function("cleanup_subject_pseudo_id")
+                .description("Failed to fetch base user for pseudo user cleanup")
+                .subject(subject_id)
+                .metadata(json!({"pseudo_user_id": pseudo_id, "error": error}))
+                .log();
         }
     });
 
@@ -81,7 +123,7 @@ async fn get_base_user_from_subject(
         }
     };
 
-    let Some(user) = db::get_base_user_by_id(state.get_pool(), &user_id).await? else {
+    let Some(user) = db::get_base_user_by_id(state.get_pool(), user_id).await? else {
         error!("Unexpected: user id was previously fetched but is now missing.");
         state
             .syslog()
@@ -101,19 +143,6 @@ async fn get_base_user_from_subject(
     };
 
     Ok((StatusCode::OK, Json(wrapped)))
-}
-
-// TODO - delete ??
-async fn validate_token(
-    Extension(subject_id): Extension<SubjectId>,
-) -> Result<impl IntoResponse, ServerError> {
-    let valid_type = match subject_id {
-        SubjectId::BaseUser(_) => SubjectType::RegisteredUser,
-        SubjectId::Integration(_) => SubjectType::Integration,
-        _ => return Err(ServerError::AccessDenied),
-    };
-
-    Ok((StatusCode::OK, Json(valid_type)))
 }
 
 async fn ensure_pseudo_user(

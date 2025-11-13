@@ -18,6 +18,20 @@ use crate::{
     },
 };
 
+pub async fn delete_pseudo_user(pool: &Pool<Postgres>, id: Uuid) -> Result<bool, sqlx::Error> {
+    let row = sqlx::query!(
+        r#"
+        DELETE FROM "pseudo_user"
+        WHERE id = $1
+        "#,
+        id
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(row.rows_affected() == 0)
+}
+
 pub async fn create_pseudo_user(pool: &Pool<Postgres>) -> Result<Uuid, sqlx::Error> {
     let id = Uuid::new_v4();
     let last_active = Utc::now();
@@ -109,7 +123,7 @@ pub async fn get_base_user_by_auth0_id(
 
 pub async fn get_base_user_by_id(
     pool: &Pool<Postgres>,
-    user_id: &Uuid,
+    user_id: Uuid,
 ) -> Result<Option<BaseUser>, sqlx::Error> {
     sqlx::query_as!(
         BaseUser,
