@@ -28,8 +28,8 @@ use crate::{
         auth::Claims,
         error::ServerError,
         game_base::{
-            CreateGameRequest, GameConverter, GameEnvelope, GamePageQuery, GameType,
-            SavedGamesPageQuery,
+            CreateGameRequest, GameConverter, GamePageQuery, GameType, InteractiveEnvelope,
+            SavedGamesPageQuery, StandaloneEnvelope,
         },
         quiz_game::QuizSession,
         spin_game::SpinSession,
@@ -170,7 +170,7 @@ async fn create_interactive_game(
         }
     };
 
-    let envelope = GameEnvelope {
+    let envelope = InteractiveEnvelope {
         game_type: game_type.clone(),
         host_id: user_id,
         game_key: key_word.clone(),
@@ -193,14 +193,16 @@ async fn create_interactive_game(
     Ok((StatusCode::CREATED, Json(response)))
 }
 
-// NOT TESTED
 async fn initiate_standalone_game(
     State(state): State<Arc<AppState>>,
     Extension(_subject_id): Extension<SubjectId>,
     Path((game_type, game_id)): Path<(GameType, Uuid)>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let response = match game_type {
-        GameType::Quiz => get_quiz_session_by_id(state.get_pool(), &game_id).await?,
+    let value = match game_type {
+        GameType::Quiz => {
+            let session = get_quiz_session_by_id(state.get_pool(), &game_id).await?;
+            session.to_json_value()?
+        }
         _ => {
             return Err(ServerError::Api(
                 StatusCode::BAD_REQUEST,
@@ -208,11 +210,15 @@ async fn initiate_standalone_game(
             ));
         }
     };
-    // TODO return some more generic resposne so its easier to add more games here
-    return Ok((StatusCode::OK, Json(response)));
+
+    let envelope = StandaloneEnvelope {
+        game_type: game_type,
+        payload: value,
+    };
+
+    return Ok((StatusCode::OK, Json(envelope)));
 }
 
-// NOT TESTED
 async fn initiate_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -243,7 +249,7 @@ async fn initiate_interactive_game(
         }
     };
 
-    let envelope = GameEnvelope {
+    let envelope = InteractiveEnvelope {
         game_type: game_type.clone(),
         host_id: user_id,
         game_key: key_word.clone(),
@@ -289,7 +295,7 @@ async fn get_games(
 pub async fn persist_standalone_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Json(request): Json<GameEnvelope>,
+    Json(request): Json<InteractiveEnvelope>,
 ) -> Result<impl IntoResponse, ServerError> {
     if let SubjectId::Integration(id) = subject_id {
         error!("Integration {} tried to store a static game", id);
@@ -314,13 +320,11 @@ pub async fn persist_standalone_game(
     Ok(StatusCode::CREATED)
 }
 
-// NOT TESTED
-// Only called from tero-session
 async fn persist_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
-    Json(request): Json<GameEnvelope>,
+    Json(request): Json<InteractiveEnvelope>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::Integration(_) = subject_id else {
         error!("User tried to persist game session");
@@ -349,24 +353,31 @@ async fn persist_interactive_game(
         GameType::Spin => {
             let session: SpinSession = serde_json::from_value(request.payload)?;
             match session.times_played {
-                0 => increment_times_played(pool, GameType::Spin, &session.base_id).await?,
-                _ => {
+                0 => {
                     let mut tx = pool.begin().await?;
                     tx_persist_spin_session(&mut tx, &session).await?;
                     tx.commit().await?;
                 }
+                _ => increment_times_played(pool, GameType::Spin, session.base_id).await?,
             }
         }
         GameType::Quiz => {
             let session: QuizSession = serde_json::from_value(request.payload)?;
-            increment_times_played(pool, GameType::Quiz, &session.quiz_id).await?;
+            match session.times_played {
+                0 => {
+                    let mut tx = pool.begin().await?;
+                    tx_persist_quiz_session(&mut tx, &session).await?;
+                    tx.commit().await?;
+                }
+                _ => increment_times_played(pool, GameType::Quiz, session.base_id).await?,
+            }
+            increment_times_played(pool, GameType::Quiz, session.quiz_id).await?;
         }
     }
 
     return Ok(StatusCode::CREATED);
 }
 
-// NOT TESTED
 async fn free_game_key(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,

@@ -56,7 +56,7 @@ pub async fn tx_persist_spin_session(
         session.game_type as _,
         session.category as _,
         session.iterations,
-        session.times_played,
+        1,
         last_played
     )
     .execute(&mut **tx)

@@ -39,7 +39,6 @@ pub async fn get_quiz_session_by_id(
     Ok(session)
 }
 
-// TODO - join and do asycn
 pub async fn tx_persist_quiz_session(
     tx: &mut Transaction<'_, Postgres>,
     session: &QuizSession,

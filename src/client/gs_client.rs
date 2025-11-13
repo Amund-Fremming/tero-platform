@@ -2,7 +2,7 @@ use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::models::game_base::GameEnvelope;
+use crate::models::game_base::InteractiveEnvelope;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GSClientError {
@@ -54,7 +54,7 @@ impl GSClient {
     pub async fn create_interactive_game(
         &self,
         client: &Client,
-        envelope: &GameEnvelope,
+        envelope: &InteractiveEnvelope,
     ) -> Result<(), GSClientError> {
         let uri = format!("{}session/create", self.domain);
         self.send_json(client, &uri, envelope).await
@@ -63,7 +63,7 @@ impl GSClient {
     pub async fn initiate_game_session(
         &self,
         client: &Client,
-        envelope: &GameEnvelope,
+        envelope: &InteractiveEnvelope,
     ) -> Result<(), GSClientError> {
         let uri = "/games/initiate".to_string();
         self.send_json(client, &uri, envelope).await

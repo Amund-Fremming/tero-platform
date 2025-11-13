@@ -127,14 +127,10 @@
 - [x] Go over indexes and optimize
 - [x] Create relations where possible
 - [x] Cascades
-
-
-
-- [ ] Move increment games played when you join now when storing a game
 - [x] Use compile time checks with query macros 
+
 - [ ] delete user needs to delete auth0 user also
 
-- [ ] One endpoint to get all admin related data: stats, popup, config ??
 - [ ] Error handling for client, game full/game does not exist ..
 - [ ] Generic json response on initiate standalone game, its specific now
 

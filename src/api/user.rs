@@ -185,9 +185,6 @@ async fn ensure_pseudo_user(
     Ok((StatusCode::CREATED, Json(pseudo_id)))
 }
 
-/*
-Update this to have id, wo only return no content if a admin updates another user id than itslef, now a admin cannot update its own values without gvetting blank back
-*/
 async fn patch_user(
     State(state): State<Arc<AppState>>,
     Extension(subject): Extension<SubjectId>,

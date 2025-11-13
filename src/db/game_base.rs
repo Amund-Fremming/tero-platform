@@ -78,7 +78,7 @@ pub async fn get_game_page(
 pub async fn increment_times_played(
     pool: &Pool<Postgres>,
     game_type: GameType,
-    game_id: &Uuid,
+    game_id: Uuid,
 ) -> Result<(), ServerError> {
     let query = format!(
         r#"
