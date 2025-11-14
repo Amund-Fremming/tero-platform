@@ -1,6 +1,6 @@
 use chrono::{Duration, Utc};
 use sqlx::{Pool, Postgres};
-use tracing::{debug, warn};
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
@@ -61,8 +61,6 @@ pub async fn get_game_page(
         limit,
         offset
     );
-
-    debug!("Query: {}", query);
 
     let mut games = sqlx::query_as::<_, GameBase>(&query)
         .fetch_all(pool)

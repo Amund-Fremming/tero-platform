@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use axum::{
     Extension, Json, Router,
@@ -8,6 +8,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use serde_json::json;
+use sqlx::{Pool, Postgres};
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -44,77 +45,11 @@ pub fn public_auth_routes(state: Arc<AppState>) -> Router {
 pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(get_base_user_from_subject))
-        .route(
-            "/{user_id}",
-            delete(delete_user)
-                .patch(patch_user)
-                .post(cleanup_subject_pseudo_id),
-        )
+        .route("/{user_id}", delete(delete_user).patch(patch_user))
         .route("/list", get(list_all_users))
         .route("/stats", get(get_user_activity_stats))
         .route("/popup", put(update_client_popup))
         .with_state(state)
-}
-
-async fn cleanup_subject_pseudo_id(
-    State(state): State<Arc<AppState>>,
-    Extension(subject_id): Extension<SubjectId>,
-    Extension(_claims): Extension<Claims>,
-    Path(pseudo_id): Path<Uuid>,
-) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::BaseUser(base_id) = subject_id else {
-        return Err(ServerError::AccessDenied);
-    };
-
-    if base_id == pseudo_id {
-        // Already exists a base user
-        return Ok(StatusCode::OK);
-    }
-
-    let pool = state.get_pool().clone();
-    tokio::spawn(async move {
-        let state = state.clone();
-        let subject_id = subject_id.clone();
-
-        let base_user = match get_base_user_by_id(state.get_pool(), pseudo_id).await {
-            Ok(option) => option,
-            Err(e) => {
-                let _ = SystemLogBuilder::new(&pool)
-                    .action(LogAction::Read)
-                    .ceverity(LogCeverity::Warning)
-                    .function("cleanup_subject_pseudo_id")
-                    .description("Failed to fetch base user for pseudo user cleanup")
-                    .subject(subject_id)
-                    .metadata(json!({"pseudo_user_id": pseudo_id, "error": e.to_string()}))
-                    .log();
-
-                return;
-            }
-        };
-
-        if let Some(_) = base_user {
-            debug!("Base user exists for pseudo user, skipping cleanup");
-            return;
-        }
-
-        let (deleted, error) = match delete_pseudo_user(state.get_pool(), pseudo_id).await {
-            Ok(deleted) => (deleted, "no error".to_string()),
-            Err(e) => (false, e.to_string()),
-        };
-
-        if !deleted {
-            let _ = SystemLogBuilder::new(&pool)
-                .action(LogAction::Read)
-                .ceverity(LogCeverity::Critical)
-                .function("cleanup_subject_pseudo_id")
-                .description("Failed to fetch base user for pseudo user cleanup")
-                .subject(subject_id)
-                .metadata(json!({"pseudo_user_id": pseudo_id, "error": error}))
-                .log();
-        }
-    });
-
-    Ok(StatusCode::OK)
 }
 
 async fn get_base_user_from_subject(
@@ -216,11 +151,11 @@ async fn patch_user(
 
 async fn delete_user(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<SubjectId>,
+    Extension(subject_id): Extension<SubjectId>,
     Extension(claims): Extension<Claims>,
     Path(user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::BaseUser(actual_user_id) = subject else {
+    let SubjectId::BaseUser(actual_user_id) = subject_id else {
         return Err(ServerError::AccessDenied);
     };
 
@@ -239,17 +174,24 @@ async fn delete_user(
 
 pub async fn auth0_trigger_endpoint(
     State(state): State<Arc<AppState>>,
-    Extension(subject): Extension<SubjectId>,
+    Extension(subject_id): Extension<SubjectId>,
+    Path(pseudo_id): Path<String>,
     Json(auth0_user): Json<Auth0User>,
 ) -> Result<impl IntoResponse, ServerError> {
-    let SubjectId::Integration(_intname) = subject else {
+    let SubjectId::Integration(_intname) = &subject_id else {
         return Err(ServerError::AccessDenied);
     };
 
+    debug!("Recieved pseudo id from auth0: {}", pseudo_id);
     info!(
         "Auth0 post registration trigger was triggered for {}",
         auth0_user.email.clone().unwrap_or("[no email]".to_string())
     );
+
+    let pseudo_id = Uuid::from_str(&pseudo_id).unwrap();
+
+    ensure_no_zombie_pseudo(state.get_pool(), pseudo_id, subject_id);
+
     let mut tx = state.get_pool().begin().await?;
     let bid = create_base_user(&mut tx, &auth0_user).await?;
     let pid = tx_create_pseudo_user(&mut tx, bid).await?;
@@ -261,6 +203,51 @@ pub async fn auth0_trigger_endpoint(
     tx.commit().await?;
 
     Ok((StatusCode::CREATED, Json(pid)))
+}
+
+fn ensure_no_zombie_pseudo(pool: &Pool<Postgres>, pseudo_id: Uuid, subject_id: SubjectId) {
+    let pool = pool.clone();
+    tokio::spawn(async move {
+        let pool = pool.clone();
+        let subject_id = subject_id.clone();
+
+        let base_user = match get_base_user_by_id(&pool, pseudo_id).await {
+            Ok(option) => option,
+            Err(e) => {
+                let _ = SystemLogBuilder::new(&pool)
+                    .action(LogAction::Read)
+                    .ceverity(LogCeverity::Warning)
+                    .function("cleanup_subject_pseudo_id")
+                    .description("Failed to fetch base user for pseudo user cleanup")
+                    .subject(subject_id)
+                    .metadata(json!({"pseudo_user_id": pseudo_id, "error": e.to_string()}))
+                    .log();
+
+                return;
+            }
+        };
+
+        if let Some(_) = base_user {
+            debug!("Base user exists for pseudo user, skipping cleanup");
+            return;
+        }
+
+        let (deleted, error) = match delete_pseudo_user(&pool, pseudo_id).await {
+            Ok(deleted) => (deleted, "no error".to_string()),
+            Err(e) => (false, e.to_string()),
+        };
+
+        if !deleted {
+            let _ = SystemLogBuilder::new(&pool)
+                .action(LogAction::Read)
+                .ceverity(LogCeverity::Critical)
+                .function("cleanup_subject_pseudo_id")
+                .description("Failed to fetch base user for pseudo user cleanup")
+                .subject(subject_id)
+                .metadata(json!({"pseudo_user_id": pseudo_id, "error": error}))
+                .log();
+        }
+    });
 }
 
 pub async fn list_all_users(
@@ -316,6 +303,7 @@ async fn update_client_popup(
 
     let manager = state.get_popup_manager();
     let popup = manager.update(payload).await;
+    debug!("Popup updated successfully");
 
     Ok((StatusCode::OK, Json(popup)))
 }

@@ -65,7 +65,7 @@ async fn main() {
     }
 
     let event_routes = Router::new()
-        .route("/", post(auth0_trigger_endpoint))
+        .route("/create/{pseudo_id}", post(auth0_trigger_endpoint))
         .layer(from_fn_with_state(state.clone(), webhook_mw))
         .with_state(state.clone());
 
