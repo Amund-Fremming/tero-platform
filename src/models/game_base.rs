@@ -57,7 +57,9 @@ pub enum Gender {
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, sqlx::Type)]
 #[sqlx(type_name = "game_type", rename_all = "lowercase")]
 pub enum GameType {
+    #[serde(rename = "Quiz")]
     Quiz,
+    #[serde(rename = "Spin")]
     Spin,
 }
 

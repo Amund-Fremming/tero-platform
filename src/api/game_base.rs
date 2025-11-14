@@ -9,7 +9,7 @@ use axum::{
 use reqwest::StatusCode;
 use uuid::Uuid;
 
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     client::gs_client::InteractiveGameResponse,
@@ -140,13 +140,17 @@ async fn join_interactive_game(
     Ok((StatusCode::OK, Json(response)))
 }
 
-// NOT TESTED
 async fn create_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
     Path(game_type): Path<GameType>,
     Json(request): Json<CreateGameRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
+    // REMOVE
+    debug!(
+        "Recieved request: {}",
+        serde_json::to_string_pretty(&request).unwrap()
+    );
     let user_id = match subject_id {
         SubjectId::PseudoUser(id) | SubjectId::BaseUser(id) => id,
         _ => return Err(ServerError::AccessDenied),
@@ -190,6 +194,7 @@ async fn create_interactive_game(
         hub_address,
     };
 
+    debug!("Interactive game was created");
     Ok((StatusCode::CREATED, Json(response)))
 }
 
