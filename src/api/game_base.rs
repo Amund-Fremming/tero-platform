@@ -79,7 +79,6 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
         .nest("/session", interactive_routes)
 }
 
-// NOT TESTED
 async fn delete_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -98,7 +97,6 @@ async fn delete_game(
     Ok(StatusCode::OK)
 }
 
-// NOT TESTED
 async fn join_interactive_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
@@ -296,7 +294,6 @@ async fn get_games(
     Ok((StatusCode::OK, Json(page)))
 }
 
-// NOT TESTED
 pub async fn persist_standalone_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
