@@ -25,6 +25,7 @@ pub fn log_routes(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", post(create_system_log))
         .route("/", get(get_system_log_page))
+        .route("/count", get(get_log_category_count))
         .with_state(state)
 }
 
@@ -92,4 +93,22 @@ async fn create_system_log(
     builder.log_async();
 
     Ok(StatusCode::CREATED)
+}
+
+async fn get_log_category_count(
+    State(state): State<Arc<AppState>>,
+    Extension(subject_id): Extension<SubjectId>,
+    Extension(claims): Extension<Claims>,
+) -> Result<impl IntoResponse, ServerError> {
+    let SubjectId::BaseUser(_) = subject_id else {
+        error!("Unauthorized subject tried reading log category counts");
+        return Err(ServerError::AccessDenied);
+    };
+
+    if let Some(missing) = claims.missing_permission([Permission::ReadAdmin]) {
+        return Err(ServerError::Permission(missing));
+    }
+
+    let counts = db::system_log::get_log_category_count(state.get_pool()).await?;
+    Ok((StatusCode::OK, Json(counts)))
 }

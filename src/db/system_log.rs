@@ -6,7 +6,7 @@ use crate::{
     models::{
         error::ServerError,
         popup_manager::PagedResponse,
-        system_log::{LogAction, LogCeverity, SubjectType, SyslogPageQuery, SystemLog},
+        system_log::{LogAction, LogCategoryCount, LogCeverity, SubjectType, SyslogPageQuery, SystemLog},
     },
     service::db_query_builder::DBQueryBuilder,
 };
@@ -79,4 +79,33 @@ pub async fn create_system_log(
     }
 
     Ok(())
+}
+
+pub async fn get_log_category_count(
+    pool: &Pool<Postgres>,
+) -> Result<LogCategoryCount, sqlx::Error> {
+    #[derive(sqlx::FromRow)]
+    struct CountRow {
+        info: i64,
+        warning: i64,
+        critical: i64,
+    }
+
+    let result = sqlx::query_as::<_, CountRow>(
+        r#"
+        SELECT 
+            COUNT(*) FILTER (WHERE ceverity = 'info') as info,
+            COUNT(*) FILTER (WHERE ceverity = 'warning') as warning,
+            COUNT(*) FILTER (WHERE ceverity = 'critical') as critical
+        FROM system_log
+        "#
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(LogCategoryCount {
+        info: result.info,
+        warning: result.warning,
+        critical: result.critical,
+    })
 }
