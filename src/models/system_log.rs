@@ -96,3 +96,10 @@ pub struct CreateSyslogRequest {
     pub function: Option<String>,
     pub metadata: Option<serde_json::Value>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LogCategoryCount {
+    pub info: i64,
+    pub warning: i64,
+    pub critical: i64,
+}
