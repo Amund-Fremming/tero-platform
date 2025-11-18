@@ -6,7 +6,7 @@ use axum::{
     Extension, Json, Router,
     extract::{Query, State},
     response::IntoResponse,
-    routing::{get, post},
+    routing::post,
 };
 use reqwest::StatusCode;
 
@@ -23,8 +23,7 @@ use crate::{
 
 pub fn log_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/", post(create_system_log))
-        .route("/", get(get_system_log_page))
+        .route("/", post(create_system_log).get(get_system_log_page))
         .with_state(state)
 }
 
