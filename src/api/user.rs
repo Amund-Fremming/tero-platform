@@ -37,18 +37,18 @@ use crate::{
 
 pub fn public_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/ensure", post(ensure_pseudo_user))
-        .route("/popup", get(get_client_popup))
+        .route("/", post(ensure_pseudo_user))
+        .route("/popups", get(get_client_popup))
         .with_state(state)
 }
 
 pub fn protected_auth_routes(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/", get(get_base_user_from_subject))
+        .route("/", get(list_all_users))
+        .route("/me", get(get_base_user_from_subject))
         .route("/{user_id}", delete(delete_user).patch(patch_user))
-        .route("/list", get(list_all_users))
-        .route("/stats", get(get_user_activity_stats))
-        .route("/popup", put(update_client_popup))
+        .route("/activity-stats", get(get_user_activity_stats))
+        .route("/popups", put(update_client_popup))
         .with_state(state)
 }
 

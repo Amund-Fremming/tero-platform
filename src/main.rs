@@ -65,24 +65,24 @@ async fn main() {
     }
 
     let event_routes = Router::new()
-        .route("/create/{pseudo_id}", post(auth0_trigger_endpoint))
+        .route("/{pseudo_id}", post(auth0_trigger_endpoint))
         .layer(from_fn_with_state(state.clone(), webhook_mw))
         .with_state(state.clone());
 
     let public_routes = Router::new()
         .nest("/health", health_routes(state.clone()))
-        .nest("/pseudo", public_auth_routes(state.clone()))
-        .nest("/log", log_routes(state.clone()));
+        .nest("/pseudo-users", public_auth_routes(state.clone()))
+        .nest("/logs", log_routes(state.clone()));
 
     let protected_routes = Router::new()
-        .nest("/game", game_routes(state.clone()))
-        .nest("/user", protected_auth_routes(state.clone()))
+        .nest("/games", game_routes(state.clone()))
+        .nest("/users", protected_auth_routes(state.clone()))
         .layer(from_fn_with_state(state.clone(), auth_mw));
 
     let app = Router::new()
         .merge(protected_routes)
         .merge(public_routes)
-        .nest("/events", event_routes);
+        .nest("/webhooks/auth0", event_routes);
 
     // Initialize webserver
     let listener =
