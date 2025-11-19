@@ -127,6 +127,7 @@ async fn patch_user(
     Path(user_id): Path<Uuid>,
     Json(request): Json<PatchUserRequest>,
 ) -> Result<Response, ServerError> {
+    error!("Birthdate: {}", request.birth_date.unwrap());
     let SubjectId::BaseUser(uid) = subject else {
         return Err(ServerError::AccessDenied);
     };

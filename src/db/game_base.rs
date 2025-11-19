@@ -138,7 +138,7 @@ pub async fn save_game(
         "#,
         id,
         user_id,
-        base_id
+        game_id
     )
     .execute(pool)
     .await?;
@@ -161,7 +161,7 @@ pub async fn delete_saved_game(
         WHERE user_id = $1 AND base_id = $2
         "#,
         user_id,
-        base_id
+        game_id
     )
     .execute(pool)
     .await?;
