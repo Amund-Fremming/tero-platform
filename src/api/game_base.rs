@@ -47,35 +47,36 @@ use crate::{
 
 pub fn game_routes(state: Arc<AppState>) -> Router {
     let generic_routes = Router::new()
-        .route("/", post(get_games))
-        .route("/{game_type}", post(create_interactive_game))
+        .route("/page", post(get_games))
+        .route("/{game_type}/create", post(create_interactive_game))
         .route("/{game_type}/{game_id}", delete(delete_game))
-        .route("/{game_type}/{game_id}/keys/{key_word}", patch(free_game_key))
-        .route("/{game_id}/saved", post(user_save_game).delete(user_usaved_game))
-        .route("/saved", get(get_saved_games))
+        .route("/{game_type}/free-key/{key_word}", patch(free_game_key))
+        .route("/save/{base_id}", post(user_save_game))
+        .route("/unsave/{base_id}", delete(user_usaved_game))
+        .route("/saved", post(get_saved_games))
         .with_state(state.clone());
 
     let standalone_routes = Router::new()
         .route(
-            "/{game_type}/{game_id}",
+            "/{game_type}/initiate/{game_id}",
             get(initiate_standalone_game),
         )
-        .route("/sessions", post(persist_standalone_game))
+        .route("/persist", post(persist_standalone_game))
         .with_state(state.clone());
 
     let interactive_routes = Router::new()
-        .route("/sessions", post(persist_interactive_game))
+        .route("/persist", post(persist_interactive_game))
         .route(
-            "/{game_type}/{game_id}",
+            "/{game_type}/initiate/{game_id}",
             post(initiate_interactive_game),
         )
-        .route("/{game_type}/{game_id}/join", post(join_interactive_game))
+        .route("/{game_type}/join/{game_id}", post(join_interactive_game))
         .with_state(state.clone());
 
     Router::new()
-        .nest("/", generic_routes)
-        .nest("/standalone", standalone_routes)
-        .nest("/interactive", interactive_routes)
+        .nest("/general", generic_routes)
+        .nest("/static", standalone_routes)
+        .nest("/session", interactive_routes)
 }
 
 async fn delete_game(
