@@ -51,9 +51,9 @@ pub fn game_routes(state: Arc<AppState>) -> Router {
         .route("/{game_type}/create", post(create_interactive_game))
         .route("/{game_type}/{game_id}", delete(delete_game))
         .route("/{game_type}/free-key/{key_word}", patch(free_game_key))
-        .route("/save/{base_id}", post(user_save_game))
-        .route("/unsave/{base_id}", delete(user_usaved_game))
-        .route("/saved", post(get_saved_games))
+        .route("/save/{game_id}", post(user_save_game))
+        .route("/unsave/{game_id}", delete(user_usaved_game))
+        .route("/saved", get(get_saved_games))
         .with_state(state.clone());
 
     let standalone_routes = Router::new()
@@ -413,28 +413,28 @@ async fn free_game_key(
 async fn user_save_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path(base_id): Path<Uuid>,
+    Path(game_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::BaseUser(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");
         return Err(ServerError::AccessDenied);
     };
 
-    save_game(state.get_pool(), user_id, base_id).await?;
+    save_game(state.get_pool(), user_id, game_id).await?;
     Ok(StatusCode::CREATED)
 }
 
 async fn user_usaved_game(
     State(state): State<Arc<AppState>>,
     Extension(subject_id): Extension<SubjectId>,
-    Path(base_id): Path<Uuid>,
+    Path(game_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ServerError> {
     let SubjectId::BaseUser(user_id) = subject_id else {
         error!("Unregistered user or integration tried saving a game");
         return Err(ServerError::AccessDenied);
     };
 
-    delete_saved_game(state.get_pool(), user_id, base_id).await?;
+    delete_saved_game(state.get_pool(), user_id, game_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

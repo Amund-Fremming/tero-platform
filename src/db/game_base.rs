@@ -126,7 +126,7 @@ pub async fn delete_game(
 pub async fn save_game(
     pool: &Pool<Postgres>,
     user_id: Uuid,
-    base_id: Uuid,
+    game_id: Uuid,
 ) -> Result<(), ServerError> {
     use tracing::warn;
     let id = Uuid::new_v4();
@@ -153,7 +153,7 @@ pub async fn save_game(
 pub async fn delete_saved_game(
     pool: &Pool<Postgres>,
     user_id: Uuid,
-    base_id: Uuid,
+    game_id: Uuid,
 ) -> Result<(), ServerError> {
     let row = sqlx::query!(
         r#"
