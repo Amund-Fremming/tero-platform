@@ -1,6 +1,6 @@
 {
     "info": {
-        "name": "tero-platform",
+        "name": "tero.platform",
         "description": "Complete API collection for the Tero Platform gaming API",
         "version": "1.0.0",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"

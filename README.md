@@ -24,9 +24,9 @@ Tero is a platform designed for social gatherings. At its core, it is a social g
 
 The Tero ecosystem consists of several components, each with a specific role:
 
-- **[tero-platform](https://github.com/Amund-Fremming/tero-platform)** – Written in Rust, this is the core platform that manages all Tero services. It relies on a Rust-based cache called **[gustcache](https://github.com/Amund-Fremming/gustcache)**, which I developed.
-- **[tero-session](https://github.com/Amund-Fremming/tero-session)** – A microservice written in C# responsible for managing all game sessions.
-- **[tero-app](https://github.com/Amund-Fremming/tero-app)** – The mobile application for iOS, developed using React Native.
+- **[tero.platform](https://github.com/Amund-Fremming/tero.platform)** – Written in Rust, this is the core platform that manages all Tero services. It relies on a Rust-based cache called **[gustcache](https://github.com/Amund-Fremming/gustcache)**, which I developed.
+- **[tero.session](https://github.com/Amund-Fremming/tero.session)** – A microservice written in C# responsible for managing all game sessions.
+- **[tero.app](https://github.com/Amund-Fremming/tero.app)** – The mobile application for iOS, developed using React Native.
 
 
 
