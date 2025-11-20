@@ -16,7 +16,6 @@ pub async fn get_quiz_session_by_id(
             quiz.id AS quiz_id,
             base.name,
             base.description,
-            base.game_type as "game_type: _",
             base.category as "category: _",
             base.iterations,
             base.times_played as "times_played!",
@@ -48,13 +47,12 @@ pub async fn tx_persist_quiz_session(
 
     let base_row = sqlx::query!(
         r#"
-        INSERT INTO "game_base" (id, name, description, game_type, category, iterations, times_played, last_played)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO "game_base" (id, name, description, category, iterations, times_played, last_played)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
         session.base_id,
         session.name,
         session.description,
-        session.game_type as _,
         session.category as _,
         session.iterations,
         times_played,

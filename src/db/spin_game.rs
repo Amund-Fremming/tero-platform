@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::models::{
     error::ServerError,
-    spin_game::{SpinGame, SpinSession},
+    spin_game::{SpinSession},
 };
 
 pub async fn get_spin_session_by_game_id(
@@ -20,7 +20,6 @@ pub async fn get_spin_session_by_game_id(
             spin.id AS spin_id,
             base.name,
             base.description,
-            base.game_type as "game_type: _",
             base.category as "category: _",
             base.iterations,
             base.times_played,
@@ -47,13 +46,12 @@ pub async fn tx_persist_spin_session(
     let last_played = Utc::now();
     let game_row = sqlx::query!(
         r#"
-        INSERT INTO "game_base" (id, name, description, game_type, category, iterations, times_played, last_played)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO "game_base" (id, name, description, category, iterations, times_played, last_played)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
         session.base_id,
         session.name,
         session.description,
-        session.game_type as _,
         session.category as _,
         session.iterations,
         1,

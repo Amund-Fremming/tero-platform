@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::game_base::{CreateGameRequest, GameCategory, GameConverter, GameType};
+use crate::models::game_base::{CreateGameRequest, GameCategory, GameConverter};
 
 impl GameConverter for QuizSession {
     fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error> {
@@ -15,12 +15,18 @@ pub struct QuizSession {
     pub quiz_id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub game_type: GameType,
+    pub state: QuizGameState,
     pub category: GameCategory,
     pub iterations: i32,
     pub current_iteration: i32,
     pub questions: Vec<String>,
     pub times_played: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum QuizGameState {
+    Initialized,
+    Started
 }
 
 impl QuizSession {
@@ -30,7 +36,7 @@ impl QuizSession {
             quiz_id: Uuid::new_v4(),
             name: request.name,
             description: request.description,
-            game_type: GameType::Quiz,
+            state: QuizGameState::Initialized,
             category: request.category.unwrap_or(GameCategory::Default),
             iterations: 0,
             current_iteration: 0,

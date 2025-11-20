@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::game_base::{CreateGameRequest, GameCategory, GameConverter, GameType};
+use crate::models::game_base::{CreateGameRequest, GameCategory, GameConverter};
 
 impl GameConverter for SpinSession {
     fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error> {
@@ -17,13 +17,13 @@ pub struct SpinGamePlayer {
 }
 
 // This does not refelct the db table "spin_game"
-#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct SpinGame {
     pub spin_id: Uuid,
     pub base_id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub game_type: GameType,
+    pub state: SpinGameState,
     pub category: GameCategory,
     pub iterations: i32,
     pub times_played: i32,
@@ -38,13 +38,19 @@ pub struct SpinSession {
     pub host_id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub game_type: GameType,
     pub category: GameCategory,
     pub iterations: i32,
     pub times_played: i32,
     pub last_played: DateTime<Utc>,
     pub rounds: Vec<String>,
     pub players: Vec<SpinGamePlayer>,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SpinGameState {
+    Initialized,
+    Started
 }
 
 impl SpinSession {
@@ -60,7 +66,6 @@ impl SpinSession {
             host_id: user_id,
             name: request.name,
             description: request.description,
-            game_type: GameType::Spin,
             category: request.category.unwrap_or_else(|| GameCategory::Default),
             iterations: 0,
             times_played: 0,
@@ -82,7 +87,6 @@ impl SpinSession {
             host_id: user_id,
             name: game.name,
             description: game.description,
-            game_type: game.game_type,
             category: game.category,
             iterations: game.iterations,
             times_played: game.times_played,
