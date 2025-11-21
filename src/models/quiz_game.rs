@@ -15,18 +15,11 @@ pub struct QuizSession {
     pub quiz_id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub state: QuizGameState,
     pub category: GameCategory,
     pub iterations: i32,
     pub current_iteration: i32,
     pub questions: Vec<String>,
     pub times_played: i32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum QuizGameState {
-    Initialized,
-    Started
 }
 
 impl QuizSession {
