@@ -111,6 +111,11 @@ impl AppState {
     }
 
     pub fn spawn_game_cleanup(&self) {
+        if !CONFIG.server.run_game_cleanup {
+            info!("Game cleanup job is disabled by config");
+            return;
+        }
+
         let pool = self.get_pool().clone();
 
         tokio::spawn(async move {

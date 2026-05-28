@@ -64,6 +64,10 @@ fn default_active_game_retention() -> u16 {
     21
 }
 
+fn default_run_game_cleanup() -> bool {
+    true
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServerConfig {
     #[serde(default = "default_address")]
@@ -75,6 +79,8 @@ pub struct ServerConfig {
     pub page_size: u16,
     #[serde(default = "default_active_game_retention")]
     pub active_game_retention: u16,
+    #[serde(default = "default_run_game_cleanup")]
+    pub run_game_cleanup: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
